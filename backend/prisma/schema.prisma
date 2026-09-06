@@ -16,6 +16,9 @@ model User {
   role         Role     @default(USER)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  /// Audit trail: every stock movement this user recorded.
+  movements Movement[]
 }
 
 /// One value per role the stack contract declares (stacks/combos/enterprise.json auth.roles).
@@ -40,4 +43,96 @@ model ColossusAccount {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   @@map("colossus_accounts")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// StockRoom domain — inventory catalogue, locations, balances, audit log.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Direction of a stock movement. IN credits a location, OUT debits one,
+/// TRANSFER debits `fromLoc` and credits `toLoc` inside a single transaction.
+enum MovementType {
+  IN
+  OUT
+  TRANSFER
+}
+
+/// A stock-keeping unit in the catalogue. `reorderAt` is the low-stock
+/// threshold: an item is low when SUM(stockLevels.qty) <= reorderAt.
+model Item {
+  id          String   @id @default(cuid())
+  sku         String   @unique
+  name        String
+  description String?
+  unit        String
+  reorderAt   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  stockLevels StockLevel[]
+  movements   Movement[]
+}
+
+/// A physical storage location. `name` is unique so the UI can address it by label.
+model Location {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  zone      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  stockLevels   StockLevel[]
+  movementsFrom Movement[]   @relation("MovementFromLocation")
+  movementsTo   Movement[]   @relation("MovementToLocation")
+}
+
+/// The on-hand balance of one item at one location. Exactly one row per
+/// (item, location) pair — the unique constraint backs the upsert/conditional
+/// decrement used by the movements transaction.
+model StockLevel {
+  id         String   @id @default(cuid())
+  itemId     String
+  locationId String
+  qty        Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  item     Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, locationId])
+  @@index([itemId])
+  @@index([locationId])
+}
+
+/// Immutable audit record of a stock change. Never updated or deleted — the
+/// restrictive relations stop an item, location or user disappearing beneath it.
+model Movement {
+  id        String       @id @default(cuid())
+  type      MovementType
+  itemId    String
+  fromLocId String?
+  toLocId   String?
+  qty       Int
+  note      String?
+  userId    String
+  createdAt DateTime     @default(now())
+
+  item    Item      @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  fromLoc Location? @relation("MovementFromLocation", fields: [fromLocId], references: [id], onDelete: Restrict)
+  toLoc   Location? @relation("MovementToLocation", fields: [toLocId], references: [id], onDelete: Restrict)
+  user    User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([itemId, createdAt])
+  @@index([createdAt])
+  @@index([userId])
+}
+
+/// Runtime override layer for service credentials. `resolveConfig(key)` reads
+/// the env var first and falls back to the row here; admins edit it at
+/// /admin/settings. Never seeded with sample rows.
+model SystemSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
 }
