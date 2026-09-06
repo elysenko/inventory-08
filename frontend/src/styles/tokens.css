@@ -1,0 +1,83 @@
+/**
+ * StockRoom design tokens.
+ * Single source of truth for colour, spacing, radius, elevation and type.
+ * Components MUST reference these via var(--token) — never raw hex/rgb/named colours.
+ */
+:root {
+  /* ---- Surface & text -------------------------------------------------- */
+  --color-bg: #eef2f6;
+  --color-surface: #ffffff;
+  --color-surface-alt: #f7f9fc;
+  --color-surface-sunken: #eaeff5;
+  --color-border: #dde5ee;
+  --color-border-strong: #c2cede;
+  --color-text: #101a28;
+  --color-text-muted: #5c6b80;
+  --color-text-faint: #8494a8;
+  --color-text-inverse: #ffffff;
+
+  /* ---- Brand ----------------------------------------------------------- */
+  --color-brand: #1f5fd0;
+  --color-brand-strong: #17489e;
+  --color-brand-soft: #e8f0fe;
+  --color-brand-ring: #a9c6f7;
+
+  /* ---- Accent (warehouse amber) ---------------------------------------- */
+  --color-accent: #b25e09;
+  --color-accent-soft: #fdf1e0;
+
+  /* ---- Status ---------------------------------------------------------- */
+  --color-success: #15703f;
+  --color-success-soft: #e6f5ec;
+  --color-warn: #9a5b00;
+  --color-warn-soft: #fdf3e2;
+  --color-danger: #b3261e;
+  --color-danger-soft: #fceceb;
+  --color-info: #1f5fd0;
+  --color-info-soft: #e8f0fe;
+
+  /* ---- Movement types -------------------------------------------------- */
+  --color-move-in: #15703f;
+  --color-move-in-soft: #e6f5ec;
+  --color-move-out: #b3261e;
+  --color-move-out-soft: #fceceb;
+  --color-move-transfer: #5b3bb5;
+  --color-move-transfer-soft: #efeafb;
+
+  /* ---- Spacing --------------------------------------------------------- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+
+  /* ---- Radius ---------------------------------------------------------- */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+
+  /* ---- Elevation ------------------------------------------------------- */
+  --shadow-1: 0 1px 2px rgba(16, 26, 40, 0.06), 0 1px 3px rgba(16, 26, 40, 0.04);
+  --shadow-2: 0 4px 12px rgba(16, 26, 40, 0.08);
+  --shadow-3: 0 16px 40px rgba(16, 26, 40, 0.18);
+
+  /* ---- Type ------------------------------------------------------------ */
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "SFMono-Regular", ui-monospace, "Roboto Mono", Menlo, monospace;
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-md: 0.9375rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+
+  /* ---- Layout ---------------------------------------------------------- */
+  --header-height: 60px;
+  --sidebar-width: 244px;
+  --tabbar-height: 60px;
+  --content-max: 1180px;
+  --tap-target: 44px;
+}

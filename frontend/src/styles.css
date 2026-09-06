@@ -1,35 +1,14 @@
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  font-family: system-ui, sans-serif;
-  background: #f9fafb;
-  color: #111827;
-  line-height: 1.5;
-}
-
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  margin: 0 0 0.5rem;
-  font-weight: 600;
-  line-height: 1.25;
-}
-
-ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-a {
-  color: inherit;
-  text-decoration: none;
-}
+/**
+ * StockRoom global stylesheet.
+ * Split into four partials so no single file exceeds the repo file budget.
+ *   tokens      — the only place raw colour/space/type values are declared
+ *   base        — element resets and layout primitives
+ *   components  — buttons and form controls
+ *   data-display— tables, badges, empty states, tabs, modals, toolbars, pagers
+ *   responsive  — the <=768px mobile overrides (stacked tables, bottom sheets)
+ */
+@import "./styles/tokens.css";
+@import "./styles/base.css";
+@import "./styles/components.css";
+@import "./styles/data-display.css";
+@import "./styles/responsive.css";

@@ -1,0 +1,44 @@
+@if (rows().length === 0) {
+  <div class="empty" data-testid="item-levels-empty">
+    <span class="empty-icon" aria-hidden="true">🗄️</span>
+    <p class="empty-title">Nothing on hand anywhere</p>
+    <p>This item has no stock in any location yet.</p>
+    <a
+      class="btn btn-primary"
+      [routerLink]="['/movements/new']"
+      [queryParams]="{ step: '2', itemId: id(), type: 'IN' }"
+    >
+      Book stock in
+    </a>
+  </div>
+} @else {
+  <div class="table-wrap">
+    <table class="table responsive" data-testid="item-levels-table">
+      <thead>
+        <tr>
+          <th scope="col">Location</th>
+          <th scope="col">Zone</th>
+          <th scope="col" class="align-right">Quantity</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of rows(); track row.locationId) {
+          <tr [attr.data-testid]="'level-row-' + row.locationId">
+            <td data-label="Location">
+              <span class="loc-name">{{ row.locationName }}</span>
+            </td>
+            <td data-label="Zone">
+              <span class="badge badge-neutral">{{ row.zone }}</span>
+            </td>
+            <td data-label="Quantity" class="align-right num">{{ row.qty }}</td>
+          </tr>
+        }
+        <tr class="total-row" data-testid="item-levels-total">
+          <td data-label="Total">Total</td>
+          <td data-label="" class="hide-mobile"></td>
+          <td data-label="Total quantity" class="align-right num">{{ total() }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+}

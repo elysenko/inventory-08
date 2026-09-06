@@ -1,0 +1,83 @@
+<div class="modal-backdrop" (click)="dismiss.emit()">
+  <div
+    class="modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="location-form-title"
+    (click)="$event.stopPropagation()"
+    data-testid="location-form-dialog"
+  >
+    <div class="modal-header">
+      <h2 class="card-title" id="location-form-title">
+        {{ isEdit() ? 'Edit location' : 'New location' }}
+      </h2>
+      <button
+        class="btn btn-ghost btn-sm"
+        type="button"
+        aria-label="Close"
+        (click)="dismiss.emit()"
+      >
+        ×
+      </button>
+    </div>
+
+    <form class="modal-body stack" (ngSubmit)="submit()" data-testid="location-form">
+      <div class="field">
+        <label class="label" for="location-name">Name</label>
+        <input
+          id="location-name"
+          class="input"
+          [class.is-invalid]="!!nameError()"
+          type="text"
+          name="name"
+          placeholder="Bulk Racking A2"
+          [ngModel]="name()"
+          (ngModelChange)="patch('name', $event)"
+          data-testid="location-form-name"
+        />
+        @if (nameError()) {
+          <p class="field-error" data-testid="location-form-name-error">
+            {{ nameError() }}
+          </p>
+        }
+      </div>
+
+      <div class="field">
+        <label class="label" for="location-zone">Zone</label>
+        <input
+          id="location-zone"
+          class="input"
+          [class.is-invalid]="!!zoneError()"
+          type="text"
+          name="zone"
+          placeholder="Zone A"
+          [ngModel]="zone()"
+          (ngModelChange)="patch('zone', $event)"
+          data-testid="location-form-zone"
+        />
+        @if (zoneError()) {
+          <p class="field-error">{{ zoneError() }}</p>
+        }
+        <p class="hint">
+          Zones group locations on the pick path — reuse an existing zone name to
+          keep them together.
+        </p>
+      </div>
+    </form>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" type="button" (click)="dismiss.emit()">
+        Cancel
+      </button>
+      <button
+        class="btn btn-primary"
+        type="button"
+        [disabled]="saving()"
+        (click)="submit()"
+        data-testid="location-form-submit"
+      >
+        {{ isEdit() ? 'Save changes' : 'Create location' }}
+      </button>
+    </div>
+  </div>
+</div>

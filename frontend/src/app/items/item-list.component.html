@@ -1,0 +1,219 @@
+<div class="page" data-testid="items-page">
+  <header class="page-header">
+    <div>
+      <h1 class="page-title">Item catalog</h1>
+      <p class="page-subtitle">
+        {{ items().length }} items tracked ·
+        <span class="low-count">{{ lowStockCount() }} at or below reorder level</span>
+      </p>
+    </div>
+    <div class="row">
+      <a class="btn btn-secondary" routerLink="/movements/new">Record movement</a>
+      @if (isManager()) {
+        <button
+          class="btn btn-primary"
+          type="button"
+          (click)="openCreate()"
+          data-testid="items-new"
+        >
+          New item
+        </button>
+      }
+    </div>
+  </header>
+
+  <section class="card">
+    <div class="toolbar">
+      <div class="field">
+        <label class="label" for="items-search">Search</label>
+        <input
+          id="items-search"
+          class="input"
+          type="search"
+          placeholder="SKU or name…"
+          [ngModel]="q()"
+          (ngModelChange)="setSearch($event)"
+          data-testid="items-search"
+        />
+      </div>
+
+      <div class="field">
+        <label class="label" for="items-sort">Sort by</label>
+        <select
+          id="items-sort"
+          class="select"
+          [ngModel]="sort()"
+          (ngModelChange)="setSort($event)"
+          data-testid="items-sort"
+        >
+          <option value="sku">SKU</option>
+          <option value="name">Name</option>
+          <option value="qty">Quantity on hand</option>
+        </select>
+      </div>
+
+      <button
+        type="button"
+        class="checkbox"
+        [class.is-on]="lowStockOn()"
+        (click)="toggleLowStock()"
+        data-testid="items-lowstock-toggle"
+      >
+        <input type="checkbox" [checked]="lowStockOn()" tabindex="-1" aria-hidden="true" />
+        Low stock only
+      </button>
+    </div>
+
+    @if (loading()) {
+      <p class="empty" data-testid="items-loading">Loading items…</p>
+    } @else if (error()) {
+      <p class="empty" data-testid="items-error">{{ error() }}</p>
+    } @else if (visible().length === 0) {
+      <div class="empty" data-testid="items-empty">
+        <span class="empty-icon" aria-hidden="true">📦</span>
+        <p class="empty-title">No items match those filters</p>
+        <p>Try clearing the search box or the low-stock toggle.</p>
+      </div>
+    } @else {
+      <div class="table-wrap">
+        <table class="table responsive" data-testid="items-table">
+          <thead>
+            <tr>
+              <th scope="col">SKU</th>
+              <th scope="col">Item</th>
+              <th scope="col">Unit</th>
+              <th scope="col" class="align-right">Reorder at</th>
+              <th scope="col" class="align-right">On hand</th>
+              <th scope="col" class="align-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of visible(); track item.id) {
+              <tr [attr.data-testid]="'item-row-' + item.sku">
+                <td data-label="SKU">
+                  <a class="mono" [routerLink]="['/items', item.id, 'levels']">
+                    {{ item.sku }}
+                  </a>
+                </td>
+                <td data-label="Item">
+                  <a class="item-name" [routerLink]="['/items', item.id, 'levels']">
+                    {{ item.name }}
+                  </a>
+                </td>
+                <td data-label="Unit">{{ item.unit }}</td>
+                <td data-label="Reorder at" class="align-right num">{{ item.reorderAt }}</td>
+                <td data-label="On hand" class="align-right">
+                  <span class="qty num">{{ item.totalQty }}</span>
+                  @if (isLow(item)) {
+                    <span class="badge badge-low" data-testid="low-badge">Low</span>
+                  } @else {
+                    <span class="badge badge-ok">OK</span>
+                  }
+                </td>
+                <td data-label="Actions" class="align-right">
+                  @if (isManager()) {
+                    <span class="row-actions">
+                      <button
+                        class="btn btn-ghost btn-sm"
+                        type="button"
+                        (click)="openEdit(item)"
+                        [attr.data-testid]="'item-edit-' + item.sku"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        class="btn btn-ghost btn-sm"
+                        type="button"
+                        (click)="confirmDelete(item)"
+                        [attr.data-testid]="'item-delete-' + item.sku"
+                      >
+                        Delete
+                      </button>
+                    </span>
+                  } @else {
+                    <a class="btn btn-ghost btn-sm" [routerLink]="['/items', item.id, 'levels']">
+                      View
+                    </a>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pager" data-testid="items-pager">
+        <span>
+          Page {{ currentPage() }} of {{ totalPages() }} · {{ filtered().length }} items
+        </span>
+        <span class="row">
+          <button
+            class="btn btn-secondary btn-sm"
+            type="button"
+            [disabled]="currentPage() <= 1"
+            (click)="goToPage(currentPage() - 1)"
+            data-testid="items-prev"
+          >
+            Previous
+          </button>
+          <button
+            class="btn btn-secondary btn-sm"
+            type="button"
+            [disabled]="currentPage() >= totalPages()"
+            (click)="goToPage(currentPage() + 1)"
+            data-testid="items-next"
+          >
+            Next
+          </button>
+        </span>
+      </div>
+    }
+  </section>
+</div>
+
+@if (dialogOpen()) {
+  <app-item-form-dialog
+    [item]="editing()"
+    [saving]="saving()"
+    [serverError]="dialogError()"
+    (save)="save($event)"
+    (dismiss)="closeModal()"
+  />
+}
+
+@if (deleting(); as target) {
+  <div class="modal-backdrop" (click)="closeModal()">
+    <div
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="delete-item-title"
+      (click)="$event.stopPropagation()"
+      data-testid="item-delete-dialog"
+    >
+      <div class="modal-header">
+        <h2 class="card-title" id="delete-item-title">Delete {{ target.sku }}?</h2>
+      </div>
+      <div class="modal-body stack">
+        <p>
+          <strong>{{ target.name }}</strong> will be removed from the catalog.
+          Items referenced by a recorded movement cannot be deleted — record a
+          compensating movement instead.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" type="button" (click)="closeModal()">
+          Cancel
+        </button>
+        <button
+          class="btn btn-danger"
+          type="button"
+          (click)="remove(target)"
+          data-testid="item-delete-confirm"
+        >
+          Delete item
+        </button>
+      </div>
+    </div>
+  </div>
+}

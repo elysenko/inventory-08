@@ -1,0 +1,128 @@
+<div class="modal-backdrop" (click)="dismiss.emit()">
+  <div
+    class="modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="item-form-title"
+    (click)="$event.stopPropagation()"
+    data-testid="item-form-dialog"
+  >
+    <div class="modal-header">
+      <h2 class="card-title" id="item-form-title">
+        {{ isEdit() ? 'Edit item' : 'New item' }}
+      </h2>
+      <button
+        class="btn btn-ghost btn-sm"
+        type="button"
+        aria-label="Close"
+        (click)="dismiss.emit()"
+      >
+        ×
+      </button>
+    </div>
+
+    <form class="modal-body stack" (ngSubmit)="submit()" data-testid="item-form">
+      <div class="form-grid">
+        <div class="field">
+          <label class="label" for="item-sku">SKU</label>
+          <input
+            id="item-sku"
+            class="input mono"
+            [class.is-invalid]="!!skuError()"
+            type="text"
+            name="sku"
+            placeholder="WH-1009"
+            [ngModel]="sku()"
+            (ngModelChange)="patch('sku', $event)"
+            data-testid="item-form-sku"
+          />
+          @if (skuError()) {
+            <p class="field-error" data-testid="item-form-sku-error">{{ skuError() }}</p>
+          }
+        </div>
+
+        <div class="field">
+          <label class="label" for="item-unit">Unit</label>
+          <input
+            id="item-unit"
+            class="input"
+            [class.is-invalid]="!!unitError()"
+            type="text"
+            name="unit"
+            placeholder="ea"
+            [ngModel]="unit()"
+            (ngModelChange)="patch('unit', $event)"
+            data-testid="item-form-unit"
+          />
+          @if (unitError()) {
+            <p class="field-error">{{ unitError() }}</p>
+          }
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="label" for="item-name">Name</label>
+        <input
+          id="item-name"
+          class="input"
+          [class.is-invalid]="!!nameError()"
+          type="text"
+          name="name"
+          placeholder="Stretch Wrap 500mm"
+          [ngModel]="name()"
+          (ngModelChange)="patch('name', $event)"
+          data-testid="item-form-name"
+        />
+        @if (nameError()) {
+          <p class="field-error">{{ nameError() }}</p>
+        }
+      </div>
+
+      <div class="field">
+        <label class="label" for="item-description">Description</label>
+        <textarea
+          id="item-description"
+          class="textarea"
+          name="description"
+          placeholder="Optional detail that helps pickers identify the item."
+          [ngModel]="description()"
+          (ngModelChange)="patch('description', $event)"
+          data-testid="item-form-description"
+        ></textarea>
+      </div>
+
+      <div class="field">
+        <label class="label" for="item-reorder">Reorder level</label>
+        <input
+          id="item-reorder"
+          class="input num"
+          type="number"
+          min="0"
+          name="reorderAt"
+          [ngModel]="reorderAt()"
+          (ngModelChange)="patch('reorderAt', $event)"
+          data-testid="item-form-reorder"
+        />
+        <p class="hint">
+          The item appears on the low-stock report once total quantity on hand
+          drops to this number or below.
+        </p>
+      </div>
+    </form>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" type="button" (click)="dismiss.emit()">
+        Cancel
+      </button>
+      <button
+        class="btn btn-primary"
+        type="button"
+        [disabled]="saving()"
+        (click)="submit()"
+        data-testid="item-form-submit"
+      >
+        {{ isEdit() ? 'Save changes' : 'Create item' }}
+      </button>
+    </div>
+  </div>
+</div>

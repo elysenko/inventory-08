@@ -1,0 +1,150 @@
+<div class="shell" data-testid="app-shell">
+  <header class="topbar">
+    <a class="brand" routerLink="/items" data-testid="shell-brand">
+      <span class="brand-mark" aria-hidden="true">SR</span>
+      <span class="brand-name">StockRoom</span>
+    </a>
+
+    <div class="spacer"></div>
+
+    <a class="btn btn-primary btn-sm record-cta" routerLink="/movements/new">
+      <span aria-hidden="true">＋</span> Record movement
+    </a>
+
+    <div class="who" data-testid="shell-user">
+      <span class="avatar" aria-hidden="true">{{ initials() }}</span>
+      <span class="who-text">
+        <span class="who-name">{{ user()?.name || user()?.email }}</span>
+        <span class="who-role">{{ roleLabel[role()] }}</span>
+      </span>
+    </div>
+
+    <button
+      type="button"
+      class="btn btn-ghost btn-sm logout-btn"
+      (click)="logout()"
+      data-testid="shell-logout"
+    >
+      Sign out
+    </button>
+
+    <button
+      type="button"
+      class="icon-btn drawer-btn"
+      [attr.aria-expanded]="drawerOpen()"
+      aria-label="Open menu"
+      (click)="toggleDrawer()"
+      data-testid="shell-menu-toggle"
+    >
+      ☰
+    </button>
+  </header>
+
+  <div class="body">
+    <nav class="sidebar" aria-label="Main" data-testid="shell-sidebar">
+      @for (item of navItems(); track item.path) {
+        <a
+          class="nav-item"
+          [routerLink]="item.path"
+          routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: item.exact }"
+          [attr.data-testid]="'nav-' + item.short.toLowerCase()"
+        >
+          <span class="nav-icon" aria-hidden="true">{{ item.icon }}</span>
+          <span>{{ item.label }}</span>
+        </a>
+      }
+    </nav>
+
+    <main class="content" data-testid="shell-content">
+      <router-outlet />
+    </main>
+  </div>
+
+  <!-- Mobile bottom tab bar: primary destinations stay one thumb-tap away. -->
+  <nav class="tabbar" aria-label="Main" data-testid="shell-tabbar">
+    @for (item of tabItems(); track item.path) {
+      <a
+        class="tab-item"
+        [routerLink]="item.path"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: item.exact }"
+        [attr.data-testid]="'tab-' + item.short.toLowerCase()"
+      >
+        <span class="nav-icon" aria-hidden="true">{{ item.icon }}</span>
+        <span class="tab-label">{{ item.short }}</span>
+      </a>
+    }
+    @if (hasMoreTab()) {
+      <button
+        type="button"
+        class="tab-item"
+        [class.active]="drawerOpen()"
+        (click)="toggleDrawer()"
+        data-testid="tab-more"
+      >
+        <span class="nav-icon" aria-hidden="true">⋯</span>
+        <span class="tab-label">More</span>
+      </button>
+    }
+  </nav>
+
+  @if (drawerOpen()) {
+    <div class="drawer-backdrop" (click)="closeDrawer()" data-testid="shell-drawer">
+      <div class="drawer" (click)="$event.stopPropagation()">
+        <div class="drawer-grip" aria-hidden="true"></div>
+
+        <div class="drawer-user">
+          <span class="avatar" aria-hidden="true">{{ initials() }}</span>
+          <span class="who-text">
+            <span class="who-name">{{ user()?.name || user()?.email }}</span>
+            <span class="who-role">{{ roleLabel[role()] }}</span>
+          </span>
+        </div>
+
+        <ul class="drawer-nav">
+          @for (item of navItems(); track item.path) {
+            <li>
+              <a
+                class="nav-item"
+                [routerLink]="item.path"
+                routerLinkActive="active"
+                [routerLinkActiveOptions]="{ exact: item.exact }"
+                (click)="closeDrawer()"
+              >
+                <span class="nav-icon" aria-hidden="true">{{ item.icon }}</span>
+                <span>{{ item.label }}</span>
+              </a>
+            </li>
+          }
+        </ul>
+
+        @if (roleSwitcher) {
+          <div class="role-switch">
+            <p class="hint">Preview as</p>
+            <div class="role-chips">
+              @for (r of roleSwitcher; track r) {
+                <button
+                  type="button"
+                  class="role-chip"
+                  [class.active]="role() === r"
+                  (click)="switchRole(r)"
+                >
+                  {{ roleLabel[r] }}
+                </button>
+              }
+            </div>
+          </div>
+        }
+
+        <button
+          type="button"
+          class="btn btn-secondary btn-block"
+          (click)="logout()"
+        >
+          Sign out
+        </button>
+      </div>
+    </div>
+  }
+</div>

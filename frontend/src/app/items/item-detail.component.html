@@ -1,0 +1,109 @@
+<div class="page" data-testid="item-detail-page">
+  @if (loading()) {
+    <p class="empty" data-testid="item-detail-loading">Loading item…</p>
+  } @else if (error()) {
+    <p class="empty" data-testid="item-detail-error">{{ error() }}</p>
+  } @else {
+  @if (item(); as current) {
+    <nav class="crumbs">
+      <a routerLink="/items">Items</a>
+      <span aria-hidden="true">/</span>
+      <span class="mono">{{ current.sku }}</span>
+    </nav>
+
+    <header class="page-header">
+      <div>
+        <h1 class="page-title">{{ current.name }}</h1>
+        <p class="page-subtitle">
+          <span class="mono">{{ current.sku }}</span> · measured in
+          {{ current.unit }} · reorder at {{ current.reorderAt }}
+        </p>
+        @if (current.description) {
+          <p class="page-subtitle">{{ current.description }}</p>
+        }
+      </div>
+      <div class="row">
+        <a
+          class="btn btn-secondary"
+          [routerLink]="['/movements/new']"
+          [queryParams]="{ step: '2', itemId: current.id }"
+          data-testid="item-record-movement"
+        >
+          Record movement
+        </a>
+        @if (isManager()) {
+          <button
+            class="btn btn-primary"
+            type="button"
+            (click)="openEdit()"
+            data-testid="item-detail-edit"
+          >
+            Edit item
+          </button>
+        }
+      </div>
+    </header>
+
+    <section class="summary grid-auto">
+      <div class="card card-pad stat">
+        <p class="stat-label">Total on hand</p>
+        <p class="stat-value num" data-testid="item-total-qty">{{ current.totalQty }}</p>
+        <p class="hint">{{ current.unit }} across all locations</p>
+      </div>
+      <div class="card card-pad stat">
+        <p class="stat-label">Reorder level</p>
+        <p class="stat-value num">{{ current.reorderAt }}</p>
+        <p class="hint">Triggers the low-stock report</p>
+      </div>
+      <div class="card card-pad stat">
+        <p class="stat-label">Status</p>
+        <p class="stat-value">
+          @if (isLow()) {
+            <span class="badge badge-low" data-testid="item-status-badge">Below reorder level</span>
+          } @else {
+            <span class="badge badge-ok" data-testid="item-status-badge">Healthy</span>
+          }
+        </p>
+        <p class="hint">Compared against total on hand</p>
+      </div>
+    </section>
+
+    <section class="card detail-card">
+      <nav class="tabs" aria-label="Item detail sections">
+        <a
+          class="tab"
+          routerLink="levels"
+          routerLinkActive="active"
+          data-testid="tab-levels"
+        >
+          Stock by location
+        </a>
+        <a
+          class="tab"
+          routerLink="movements"
+          routerLinkActive="active"
+          data-testid="tab-movements"
+        >
+          Movement history
+        </a>
+      </nav>
+      <router-outlet />
+    </section>
+  } @else {
+    <div class="empty" data-testid="item-detail-empty">
+      <span class="empty-icon" aria-hidden="true">🔍</span>
+      <p class="empty-title">That item no longer exists</p>
+      <a class="btn btn-secondary" routerLink="/items">Back to the catalog</a>
+    </div>
+  }
+  }
+</div>
+
+@if (dialogOpen()) {
+  <app-item-form-dialog
+    [item]="item()"
+    [serverError]="dialogError()"
+    (save)="save($event)"
+    (dismiss)="closeModal()"
+  />
+}

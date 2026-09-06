@@ -1,0 +1,49 @@
+@if (rows().length === 0) {
+  <div class="empty" data-testid="item-movements-empty">
+    <span class="empty-icon" aria-hidden="true">🧾</span>
+    <p class="empty-title">No movements recorded yet</p>
+    <p>Every stock movement for this item will appear here, permanently.</p>
+    <a
+      class="btn btn-primary"
+      [routerLink]="['/movements/new']"
+      [queryParams]="{ step: '2', itemId: id() }"
+    >
+      Record the first movement
+    </a>
+  </div>
+} @else {
+  <div class="table-wrap">
+    <table class="table responsive" data-testid="item-movements-table">
+      <thead>
+        <tr>
+          <th scope="col">When</th>
+          <th scope="col">Type</th>
+          <th scope="col" class="align-right">Qty</th>
+          <th scope="col">From → To</th>
+          <th scope="col">Recorded by</th>
+          <th scope="col">Note</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of rows(); track row.id) {
+          <tr [attr.data-testid]="'item-movement-' + row.id">
+            <td data-label="When">{{ row.createdAt | date: 'd MMM y, HH:mm' }}</td>
+            <td data-label="Type">
+              <span [class]="badgeClass(row.type)">{{ row.type }}</span>
+            </td>
+            <td data-label="Qty" class="align-right num">{{ row.qty }}</td>
+            <td data-label="From → To">
+              <span class="path">
+                {{ row.fromLocName || '—' }}
+                <span aria-hidden="true">→</span>
+                {{ row.toLocName || '—' }}
+              </span>
+            </td>
+            <td data-label="Recorded by" class="who">{{ row.userEmail }}</td>
+            <td data-label="Note" class="note">{{ row.note || '—' }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

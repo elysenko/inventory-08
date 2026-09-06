@@ -1,0 +1,9 @@
+.page-level {
+  margin-bottom: var(--space-4);
+}
+
+.row-actions {
+  display: inline-flex;
+  gap: var(--space-1);
+  justify-content: flex-end;
+}

@@ -1,0 +1,30 @@
+.who,
+.path,
+.note {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.path {
+  white-space: nowrap;
+}
+
+.note {
+  max-width: 24ch;
+}
+
+.item-name {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 768px) {
+  .item-name {
+    display: inline;
+  }
+
+  .note {
+    max-width: none;
+  }
+}

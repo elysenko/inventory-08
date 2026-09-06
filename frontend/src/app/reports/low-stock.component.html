@@ -1,0 +1,92 @@
+<div class="page" data-testid="low-stock-page">
+  <header class="page-header">
+    <div>
+      <h1 class="page-title">Low stock</h1>
+      <p class="page-subtitle">
+        Items whose total quantity on hand has reached or fallen below their
+        reorder level. Worst shortfall first.
+      </p>
+    </div>
+    <a class="btn btn-secondary" routerLink="/items" [queryParams]="{ lowStock: 'true' }">
+      View in catalog
+    </a>
+  </header>
+
+  @if (rows().length > 0) {
+    <section class="summary-strip">
+      <div class="card card-pad stat">
+        <p class="stat-label">Items to reorder</p>
+        <p class="stat-value num" data-testid="low-stock-count">{{ rows().length }}</p>
+      </div>
+      <div class="card card-pad stat">
+        <p class="stat-label">Completely out of stock</p>
+        <p class="stat-value num" data-testid="low-stock-zero">{{ outOfStock() }}</p>
+      </div>
+    </section>
+  }
+
+  <section class="card">
+    @if (loading()) {
+      <p class="empty" data-testid="low-stock-loading">Loading report…</p>
+    } @else if (error()) {
+      <p class="empty" data-testid="low-stock-error">{{ error() }}</p>
+    } @else if (sorted().length === 0) {
+      <div class="empty" data-testid="low-stock-empty">
+        <span class="empty-icon" aria-hidden="true">✅</span>
+        <p class="empty-title">Everything is above its reorder threshold</p>
+        <p>Nothing needs reordering right now.</p>
+      </div>
+    } @else {
+      <div class="table-wrap">
+        <table class="table responsive" data-testid="low-stock-table">
+          <thead>
+            <tr>
+              <th scope="col">SKU</th>
+              <th scope="col">Item</th>
+              <th scope="col" class="align-right">On hand</th>
+              <th scope="col" class="align-right">Reorder at</th>
+              <th scope="col" class="align-right">Shortfall</th>
+              <th scope="col" class="align-right">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of sorted(); track row.id) {
+              <tr [attr.data-testid]="'low-stock-row-' + row.sku">
+                <td data-label="SKU">
+                  <a class="mono" [routerLink]="['/items', row.id, 'levels']">{{ row.sku }}</a>
+                </td>
+                <td data-label="Item">
+                  <a class="item-name" [routerLink]="['/items', row.id, 'levels']">
+                    {{ row.name }}
+                  </a>
+                </td>
+                <td data-label="On hand" class="align-right">
+                  <span class="num">{{ row.totalQty }}</span>
+                  @if (row.totalQty === 0) {
+                    <span class="badge badge-danger">Out</span>
+                  }
+                </td>
+                <td data-label="Reorder at" class="align-right num">{{ row.reorderAt }}</td>
+                <td data-label="Shortfall" class="align-right">
+                  <span class="badge badge-low num">
+                    {{ shortfall(row) ? '−' + shortfall(row) : 'At threshold' }}
+                  </span>
+                </td>
+                <td data-label="Action" class="align-right">
+                  <a
+                    class="btn btn-ghost btn-sm"
+                    [routerLink]="['/movements/new']"
+                    [queryParams]="{ step: '2', itemId: row.id, type: 'IN' }"
+                    [attr.data-testid]="'low-stock-book-in-' + row.sku"
+                  >
+                    Book in
+                  </a>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+</div>

@@ -1,0 +1,162 @@
+<div class="page" data-testid="movement-log-page">
+  <header class="page-header">
+    <div>
+      <h1 class="page-title">Audit log</h1>
+      <p class="page-subtitle">
+        Every movement ever recorded, newest first. Entries are immutable —
+        nothing here can be edited or deleted.
+      </p>
+    </div>
+    <a class="btn btn-secondary" routerLink="/movements/new">Record movement</a>
+  </header>
+
+  <section class="card">
+    <div class="toolbar">
+      <div class="field">
+        <label class="label" for="log-item">Item</label>
+        <select
+          id="log-item"
+          class="select"
+          [ngModel]="itemId()"
+          (ngModelChange)="setFilter('itemId', $event)"
+          data-testid="log-filter-item"
+        >
+          <option value="">All items</option>
+          @for (item of items(); track item.id) {
+            <option [value]="item.id">{{ item.sku }} — {{ item.name }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="field">
+        <label class="label" for="log-type">Type</label>
+        <select
+          id="log-type"
+          class="select"
+          [ngModel]="type()"
+          (ngModelChange)="setFilter('type', $event)"
+          data-testid="log-filter-type"
+        >
+          <option value="">All types</option>
+          @for (option of types; track option) {
+            <option [value]="option">{{ option }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="field">
+        <label class="label" for="log-from">From</label>
+        <input
+          id="log-from"
+          class="input"
+          type="date"
+          [ngModel]="from()"
+          (ngModelChange)="setFilter('from', $event)"
+          data-testid="log-filter-from"
+        />
+      </div>
+
+      <div class="field">
+        <label class="label" for="log-to">To</label>
+        <input
+          id="log-to"
+          class="input"
+          type="date"
+          [ngModel]="to()"
+          (ngModelChange)="setFilter('to', $event)"
+          data-testid="log-filter-to"
+        />
+      </div>
+
+      @if (hasFilters()) {
+        <button
+          class="btn btn-ghost"
+          type="button"
+          (click)="clearFilters()"
+          data-testid="log-clear-filters"
+        >
+          Clear
+        </button>
+      }
+    </div>
+
+    @if (loading()) {
+      <p class="empty" data-testid="log-loading">Loading movements…</p>
+    } @else if (error()) {
+      <p class="empty" data-testid="log-error">{{ error() }}</p>
+    } @else if (visible().length === 0) {
+      <div class="empty" data-testid="log-empty">
+        <span class="empty-icon" aria-hidden="true">🧾</span>
+        <p class="empty-title">No movements match these filters</p>
+        <p>Widen the date range or clear the item and type filters.</p>
+      </div>
+    } @else {
+      <div class="table-wrap">
+        <table class="table responsive" data-testid="log-table">
+          <thead>
+            <tr>
+              <th scope="col">When</th>
+              <th scope="col">Who</th>
+              <th scope="col">Item</th>
+              <th scope="col">Type</th>
+              <th scope="col" class="align-right">Qty</th>
+              <th scope="col">From → To</th>
+              <th scope="col">Note</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of visible(); track row.id) {
+              <tr [attr.data-testid]="'log-row-' + row.id">
+                <td data-label="When">{{ row.createdAt | date: 'd MMM y, HH:mm' }}</td>
+                <td data-label="Who" class="who">{{ row.userEmail }}</td>
+                <td data-label="Item">
+                  <a [routerLink]="['/items', row.itemId, 'movements']">
+                    <span class="mono">{{ row.itemSku }}</span>
+                  </a>
+                  <span class="item-name">{{ row.itemName }}</span>
+                </td>
+                <td data-label="Type">
+                  <span [class]="badgeClass(row.type)">{{ row.type }}</span>
+                </td>
+                <td data-label="Qty" class="align-right num">{{ row.qty }}</td>
+                <td data-label="From → To" class="path">
+                  {{ row.fromLocName || '—' }}
+                  <span aria-hidden="true">→</span>
+                  {{ row.toLocName || '—' }}
+                </td>
+                <td data-label="Note" class="note">{{ row.note || '—' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pager" data-testid="log-pager">
+        <span>
+          Page {{ currentPage() }} of {{ totalPages() }} ·
+          {{ filtered().length }} movements
+        </span>
+        <span class="row">
+          <button
+            class="btn btn-secondary btn-sm"
+            type="button"
+            [disabled]="currentPage() <= 1"
+            (click)="goToPage(currentPage() - 1)"
+            data-testid="log-prev"
+          >
+            Previous
+          </button>
+          <button
+            class="btn btn-secondary btn-sm"
+            type="button"
+            [disabled]="currentPage() >= totalPages()"
+            (click)="goToPage(currentPage() + 1)"
+            data-testid="log-next"
+          >
+            Next
+          </button>
+        </span>
+      </div>
+    }
+  </section>
+</div>

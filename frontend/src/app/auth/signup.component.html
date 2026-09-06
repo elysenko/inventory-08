@@ -1,0 +1,117 @@
+<main class="auth" data-testid="signup-page">
+  <section class="auth-brand">
+    <div class="brand-mark" aria-hidden="true">SR</div>
+    <h1 class="brand-name">StockRoom</h1>
+    <p class="brand-tagline">
+      Join your warehouse team and start recording stock in minutes.
+    </p>
+  </section>
+
+  <section class="auth-panel">
+    <div class="card card-pad auth-card">
+      <header class="auth-head">
+        <h2 class="auth-title">Create your account</h2>
+        <p class="muted">
+          New accounts join as <strong>Clerks</strong> — a manager can promote
+          you later.
+        </p>
+      </header>
+
+      <form class="stack" (ngSubmit)="submit()" data-testid="signup-form">
+        @if (formError()) {
+          <p class="form-error" role="alert" data-testid="signup-error">
+            {{ formError() }}
+          </p>
+        }
+
+        <div class="field">
+          <label class="label" for="signup-name">Full name</label>
+          <input
+            id="signup-name"
+            class="input"
+            type="text"
+            name="name"
+            autocomplete="name"
+            placeholder="Alex Rivera"
+            [ngModel]="name()"
+            (ngModelChange)="name.set($event)"
+            data-testid="signup-name"
+          />
+        </div>
+
+        <div class="field">
+          <label class="label" for="signup-email">Email</label>
+          <input
+            id="signup-email"
+            class="input"
+            [class.is-invalid]="!!emailError()"
+            type="email"
+            name="email"
+            autocomplete="email"
+            inputmode="email"
+            placeholder="you@warehouse.example"
+            [ngModel]="email()"
+            (ngModelChange)="email.set($event)"
+            data-testid="signup-email"
+          />
+          @if (emailError()) {
+            <p class="field-error" data-testid="signup-email-error">
+              {{ emailError() }}
+            </p>
+          }
+        </div>
+
+        <div class="field">
+          <label class="label" for="signup-password">Password</label>
+          <input
+            id="signup-password"
+            class="input"
+            [class.is-invalid]="!!passwordError()"
+            type="password"
+            name="password"
+            autocomplete="new-password"
+            placeholder="At least 8 characters"
+            [ngModel]="password()"
+            (ngModelChange)="password.set($event)"
+            data-testid="signup-password"
+          />
+        </div>
+
+        <div class="field">
+          <label class="label" for="signup-confirm">Confirm password</label>
+          <input
+            id="signup-confirm"
+            class="input"
+            [class.is-invalid]="!!passwordError()"
+            type="password"
+            name="confirm"
+            autocomplete="new-password"
+            placeholder="Repeat your password"
+            [ngModel]="confirm()"
+            (ngModelChange)="confirm.set($event)"
+            data-testid="signup-confirm"
+          />
+          @if (passwordError()) {
+            <p class="field-error" data-testid="signup-password-error">
+              {{ passwordError() }}
+            </p>
+          }
+        </div>
+
+        <button
+          class="btn btn-primary btn-block"
+          type="submit"
+          [disabled]="submitting()"
+          data-testid="signup-submit"
+        >
+          {{ submitting() ? 'Creating account…' : 'Create account' }}
+        </button>
+      </form>
+
+      <p class="auth-foot muted">
+        Already have an account?
+        <a routerLink="/login" data-testid="signup-login-link">Sign in</a>
+      </p>
+    </div>
+  </section>
+</main>

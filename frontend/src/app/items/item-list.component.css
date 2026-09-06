@@ -1,0 +1,20 @@
+.low-count {
+  color: var(--color-warn);
+  font-weight: 620;
+}
+
+.item-name {
+  color: var(--color-text);
+  font-weight: 620;
+}
+
+.qty {
+  font-weight: 700;
+  margin-right: var(--space-2);
+}
+
+.row-actions {
+  display: inline-flex;
+  gap: var(--space-1);
+  justify-content: flex-end;
+}

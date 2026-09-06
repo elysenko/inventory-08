@@ -1,0 +1,131 @@
+<div class="page" data-testid="locations-page">
+  <header class="page-header">
+    <div>
+      <h1 class="page-title">Storage locations</h1>
+      <p class="page-subtitle">
+        {{ locations().length }} locations across {{ zones().length }} zones.
+        Stock balances are held per location.
+      </p>
+    </div>
+    <button
+      class="btn btn-primary"
+      type="button"
+      (click)="openCreate()"
+      data-testid="locations-new"
+    >
+      New location
+    </button>
+  </header>
+
+  @if (pageError()) {
+    <p class="form-error page-level" role="alert" data-testid="locations-page-error">
+      {{ pageError() }}
+    </p>
+  }
+
+  <section class="card">
+    @if (loading()) {
+      <p class="empty" data-testid="locations-loading">Loading locations…</p>
+    } @else if (error()) {
+      <p class="empty" data-testid="locations-error">{{ error() }}</p>
+    } @else if (locations().length === 0) {
+      <div class="empty" data-testid="locations-empty">
+        <span class="empty-icon" aria-hidden="true">🗺️</span>
+        <p class="empty-title">No locations yet</p>
+        <p>Add a rack, bay or zone before recording any stock.</p>
+        <button class="btn btn-primary" type="button" (click)="openCreate()">
+          Add the first location
+        </button>
+      </div>
+    } @else {
+      <div class="table-wrap">
+        <table class="table responsive" data-testid="locations-table">
+          <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col">Zone</th>
+              <th scope="col" class="align-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (location of locations(); track location.id) {
+              <tr [attr.data-testid]="'location-row-' + location.id">
+                <td data-label="Name"><strong>{{ location.name }}</strong></td>
+                <td data-label="Zone">
+                  <span class="badge badge-neutral">{{ location.zone }}</span>
+                </td>
+                <td data-label="Actions" class="align-right">
+                  <span class="row-actions">
+                    <button
+                      class="btn btn-ghost btn-sm"
+                      type="button"
+                      (click)="openEdit(location)"
+                      [attr.data-testid]="'location-edit-' + location.id"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      class="btn btn-ghost btn-sm"
+                      type="button"
+                      (click)="confirmDelete(location)"
+                      [attr.data-testid]="'location-delete-' + location.id"
+                    >
+                      Delete
+                    </button>
+                  </span>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+</div>
+
+@if (dialogOpen()) {
+  <app-location-form-dialog
+    [location]="editing()"
+    [serverError]="dialogError()"
+    (save)="save($event)"
+    (dismiss)="closeModal()"
+  />
+}
+
+@if (deleting(); as target) {
+  <div class="modal-backdrop" (click)="closeModal()">
+    <div
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="delete-location-title"
+      (click)="$event.stopPropagation()"
+      data-testid="location-delete-dialog"
+    >
+      <div class="modal-header">
+        <h2 class="card-title" id="delete-location-title">
+          Delete {{ target.name }}?
+        </h2>
+      </div>
+      <div class="modal-body">
+        <p>
+          A location can only be deleted once it holds no stock and no movement
+          references it.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" type="button" (click)="closeModal()">
+          Cancel
+        </button>
+        <button
+          class="btn btn-danger"
+          type="button"
+          (click)="remove(target)"
+          data-testid="location-delete-confirm"
+        >
+          Delete location
+        </button>
+      </div>
+    </div>
+  </div>
+}

@@ -1,0 +1,87 @@
+<div class="page" data-testid="settings-page">
+  <header class="page-header">
+    <div>
+      <h1 class="page-title">Platform settings</h1>
+      <p class="page-subtitle">
+        Credentials for the services StockRoom depends on. Values set here take
+        effect immediately and override the deployment environment.
+      </p>
+    </div>
+  </header>
+
+  @if (unconfigured().length > 0) {
+    <p class="banner" role="status" data-testid="settings-banner">
+      <span aria-hidden="true">⚠️</span>
+      The following need credentials to activate:
+      <strong>
+        @for (group of unconfigured(); track group.service) {
+          {{ group.label }}@if (!$last) {, }
+        }
+      </strong>
+    </p>
+  }
+
+  @if (loading()) {
+    <p class="empty" data-testid="settings-loading">Loading settings…</p>
+  } @else if (error()) {
+    <p class="empty" data-testid="settings-error">{{ error() }}</p>
+  } @else {
+    <div class="stack">
+      @for (group of groups(); track group.service) {
+        <section class="card" [attr.data-testid]="'settings-service-' + group.service">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">{{ group.label }}</h2>
+              <p class="hint">{{ group.blurb }}</p>
+            </div>
+            @if (group.configured) {
+              <span class="badge badge-ok" [attr.data-testid]="'settings-status-' + group.service">
+                Configured
+              </span>
+            } @else {
+              <span class="badge badge-low" [attr.data-testid]="'settings-status-' + group.service">
+                Needs credentials
+              </span>
+            }
+          </div>
+
+          <form class="card-pad stack" (ngSubmit)="save(group)">
+            <div class="form-grid">
+              @for (entry of group.entries; track entry.key) {
+                <div class="field">
+                  <label class="label" [attr.for]="'setting-' + entry.key">
+                    {{ entry.label }}
+                  </label>
+                  <input
+                    class="input mono"
+                    [id]="'setting-' + entry.key"
+                    [name]="entry.key"
+                    type="text"
+                    autocomplete="off"
+                    spellcheck="false"
+                    [placeholder]="'Not set — paste the ' + entry.label.toLowerCase()"
+                    [ngModel]="valueFor(entry)"
+                    (ngModelChange)="patch(entry.key, $event)"
+                    [attr.data-testid]="'setting-input-' + entry.key"
+                  />
+                  <p class="hint mono">{{ entry.key }}</p>
+                </div>
+              }
+            </div>
+
+            <div class="actions">
+              <button
+                class="btn btn-primary"
+                type="submit"
+                [disabled]="saving() === group.service"
+                [attr.data-testid]="'settings-save-' + group.service"
+              >
+                {{ saving() === group.service ? 'Saving…' : 'Save ' + group.label }}
+              </button>
+            </div>
+          </form>
+        </section>
+      }
+    </div>
+  }
+</div>

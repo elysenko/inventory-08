@@ -1,0 +1,283 @@
+<div class="page" data-testid="movement-new-page">
+  <header class="page-header">
+    <div>
+      <h1 class="page-title">Record a stock movement</h1>
+      <p class="page-subtitle">
+        Movements are permanent. To correct a mistake, record a compensating
+        movement rather than editing history.
+      </p>
+    </div>
+    <a class="btn btn-ghost" routerLink="/items">Cancel</a>
+  </header>
+
+  <ol class="steps" data-testid="wizard-steps">
+    <li class="step" [class.done]="activeStep() > 1" [class.current]="activeStep() === 1">
+      <button type="button" class="step-btn" (click)="goToStep(1)" data-testid="wizard-step-1">
+        <span class="step-num">1</span>
+        <span class="step-text">
+          <span class="step-title">Item</span>
+          <span class="step-value">{{ selectedItem()?.sku || 'Not chosen' }}</span>
+        </span>
+      </button>
+    </li>
+    <li class="step" [class.done]="activeStep() > 2" [class.current]="activeStep() === 2">
+      <button
+        type="button"
+        class="step-btn"
+        [disabled]="!selectedItem()"
+        (click)="goToStep(2)"
+        data-testid="wizard-step-2"
+      >
+        <span class="step-num">2</span>
+        <span class="step-text">
+          <span class="step-title">Type &amp; locations</span>
+          <span class="step-value">{{ movementType() || 'Not chosen' }}</span>
+        </span>
+      </button>
+    </li>
+    <li class="step" [class.current]="activeStep() === 3">
+      <button
+        type="button"
+        class="step-btn"
+        [disabled]="!movementType()"
+        (click)="goToStep(3)"
+        data-testid="wizard-step-3"
+      >
+        <span class="step-num">3</span>
+        <span class="step-text">
+          <span class="step-title">Quantity &amp; confirm</span>
+          <span class="step-value">{{ quantity() || '—' }}</span>
+        </span>
+      </button>
+    </li>
+  </ol>
+
+  <!-- ============================ Step 1 ============================ -->
+  @if (activeStep() === 1) {
+    <section class="card" data-testid="wizard-panel-1">
+      <div class="card-header">
+        <h2 class="card-title">Which item are you moving?</h2>
+      </div>
+      <div class="toolbar">
+        <div class="field">
+          <label class="label" for="wizard-search">Find an item</label>
+          <input
+            id="wizard-search"
+            class="input"
+            type="search"
+            placeholder="SKU or name…"
+            [ngModel]="q()"
+            (ngModelChange)="search($event)"
+            data-testid="wizard-item-search"
+          />
+        </div>
+      </div>
+
+      @if (matches().length === 0) {
+        <div class="empty" data-testid="wizard-item-empty">
+          <span class="empty-icon" aria-hidden="true">🔍</span>
+          <p class="empty-title">No items match “{{ q() }}”</p>
+          <p>Check the SKU, or ask a manager to add the item first.</p>
+        </div>
+      } @else {
+        <ul class="picker" data-testid="wizard-item-list">
+          @for (item of matches(); track item.id) {
+            <li>
+              <button
+                type="button"
+                class="pick"
+                [class.selected]="item.id === itemId()"
+                (click)="chooseItem(item)"
+                [attr.data-testid]="'wizard-item-' + item.sku"
+              >
+                <span class="pick-main">
+                  <span class="pick-title">{{ item.name }}</span>
+                  <span class="mono muted">{{ item.sku }}</span>
+                </span>
+                <span class="pick-meta num">{{ item.totalQty }} {{ item.unit }}</span>
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  }
+
+  <!-- ============================ Step 2 ============================ -->
+  @if (activeStep() === 2) {
+    <section class="card card-pad stack" data-testid="wizard-panel-2">
+      <h2 class="card-title">
+        What kind of movement for {{ selectedItem()?.name }}?
+      </h2>
+
+      <div class="type-grid" data-testid="wizard-type-group">
+        @for (option of types; track option) {
+          <button
+            type="button"
+            class="type-card"
+            [class.selected]="movementType() === option"
+            (click)="chooseType(option)"
+            [attr.data-testid]="'wizard-type-' + option"
+          >
+            <span class="badge" [class.badge-in]="option === 'IN'" [class.badge-out]="option === 'OUT'" [class.badge-transfer]="option === 'TRANSFER'">
+              {{ option }}
+            </span>
+            <span class="type-title">{{ typeLabel(option) }}</span>
+            <span class="hint">{{ typeHint(option) }}</span>
+          </button>
+        }
+      </div>
+
+      @if (movementType()) {
+        <div class="form-grid">
+          @if (needsFrom()) {
+            <div class="field">
+              <label class="label" for="wizard-from">From location</label>
+              <select
+                id="wizard-from"
+                class="select"
+                [ngModel]="fromLocId()"
+                (ngModelChange)="setFrom($event)"
+                data-testid="wizard-from"
+              >
+                <option value="">Choose a source…</option>
+                @for (source of sourceOptions(); track source.locationId) {
+                  <option [value]="source.locationId">
+                    {{ source.locationName }} — {{ source.qty }} available
+                  </option>
+                }
+              </select>
+              @if (sourceOptions().length === 0) {
+                <p class="field-error" data-testid="wizard-no-source">
+                  This item has no stock in any location, so nothing can be moved out.
+                </p>
+              } @else if (fromLocId()) {
+                <p class="hint" data-testid="wizard-available">
+                  {{ available() }} {{ selectedItem()?.unit }} available here.
+                </p>
+              }
+            </div>
+          }
+
+          @if (needsTo()) {
+            <div class="field">
+              <label class="label" for="wizard-to">To location</label>
+              <select
+                id="wizard-to"
+                class="select"
+                [ngModel]="toLocId()"
+                (ngModelChange)="setTo($event)"
+                data-testid="wizard-to"
+              >
+                <option value="">Choose a destination…</option>
+                @for (location of locations(); track location.id) {
+                  <option [value]="location.id">
+                    {{ location.name }} · {{ location.zone }}
+                  </option>
+                }
+              </select>
+            </div>
+          }
+        </div>
+
+        @if (sameLocation()) {
+          <p class="form-error" data-testid="wizard-same-location">
+            A transfer needs two different locations.
+          </p>
+        }
+      }
+
+      <div class="wizard-actions">
+        <button class="btn btn-secondary" type="button" (click)="goToStep(1)">
+          Back
+        </button>
+        <button
+          class="btn btn-primary"
+          type="button"
+          [disabled]="!movementType() || !locationsReady()"
+          (click)="goToStep(3)"
+          data-testid="wizard-next-2"
+        >
+          Continue
+        </button>
+      </div>
+    </section>
+  }
+
+  <!-- ============================ Step 3 ============================ -->
+  @if (activeStep() === 3) {
+    <section class="card card-pad stack" data-testid="wizard-panel-3">
+      <h2 class="card-title">Quantity and confirmation</h2>
+
+      @if (formError()) {
+        <p class="form-error" role="alert" data-testid="wizard-error">
+          {{ formError() }}
+        </p>
+      }
+
+      <div class="field qty-field">
+        <label class="label" for="wizard-qty">
+          Quantity ({{ selectedItem()?.unit }})
+        </label>
+        <input
+          id="wizard-qty"
+          class="input num"
+          [class.is-invalid]="!!qtyError() && !!qty()"
+          type="number"
+          min="1"
+          inputmode="numeric"
+          placeholder="0"
+          [ngModel]="qty()"
+          (ngModelChange)="setQty($event)"
+          data-testid="wizard-qty"
+        />
+        @if (qtyError() && qty()) {
+          <p class="field-error" data-testid="wizard-qty-error">{{ qtyError() }}</p>
+        } @else if (needsFrom()) {
+          <p class="hint">
+            {{ available() }} available at {{ locationName(fromLocId()) }}.
+          </p>
+        }
+      </div>
+
+      <div class="field">
+        <label class="label" for="wizard-note">Note</label>
+        <textarea
+          id="wizard-note"
+          class="textarea"
+          placeholder="Purchase order, wave number, or why this movement happened."
+          [ngModel]="note()"
+          (ngModelChange)="note.set($event)"
+          data-testid="wizard-note"
+        ></textarea>
+      </div>
+
+      <dl class="summary" data-testid="wizard-summary">
+        <div><dt>Item</dt><dd>{{ selectedItem()?.name }} <span class="mono muted">{{ selectedItem()?.sku }}</span></dd></div>
+        <div><dt>Type</dt><dd>{{ movementType() }} — {{ typeLabel(movementType()!) }}</dd></div>
+        @if (needsFrom()) {
+          <div><dt>From</dt><dd>{{ locationName(fromLocId()) }}</dd></div>
+        }
+        @if (needsTo()) {
+          <div><dt>To</dt><dd>{{ locationName(toLocId()) }}</dd></div>
+        }
+        <div><dt>Quantity</dt><dd class="num">{{ quantity() }} {{ selectedItem()?.unit }}</dd></div>
+      </dl>
+
+      <div class="wizard-actions">
+        <button class="btn btn-secondary" type="button" (click)="goToStep(2)">
+          Back
+        </button>
+        <button
+          class="btn btn-primary"
+          type="button"
+          [disabled]="!canSubmit()"
+          (click)="submit()"
+          data-testid="wizard-submit"
+        >
+          {{ submitting() ? 'Recording…' : 'Record movement' }}
+        </button>
+      </div>
+    </section>
+  }
+</div>

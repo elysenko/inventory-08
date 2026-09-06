@@ -1,0 +1,15 @@
+<main class="forbidden" data-testid="forbidden-page">
+  <div class="card card-pad forbidden-card">
+    <p class="code">403</p>
+    <h1 class="page-title">You don't have access to this</h1>
+    <p class="muted">
+      Your account is signed in as
+      <strong>{{ roleLabel[role()] }}</strong>. This area is restricted to
+      warehouse managers and admins — ask a manager to grant you access, or head
+      back to the item catalog.
+    </p>
+    <a class="btn btn-primary" routerLink="/items" data-testid="forbidden-back">
+      Back to items
+    </a>
+  </div>
+</main>

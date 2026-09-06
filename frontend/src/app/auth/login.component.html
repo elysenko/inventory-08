@@ -1,0 +1,90 @@
+<main class="auth" data-testid="login-page">
+  <section class="auth-brand">
+    <div class="brand-mark" aria-hidden="true">SR</div>
+    <h1 class="brand-name">StockRoom</h1>
+    <p class="brand-tagline">
+      Every carton, every shelf, every movement — accounted for.
+    </p>
+    <ul class="brand-points">
+      <li><span aria-hidden="true">📦</span> Live per-location stock balances</li>
+      <li><span aria-hidden="true">🔁</span> Goods in, goods out, transfers</li>
+      <li><span aria-hidden="true">📉</span> Low-stock alerts before you run dry</li>
+      <li><span aria-hidden="true">🧾</span> A permanent, unedited audit trail</li>
+    </ul>
+  </section>
+
+  <section class="auth-panel">
+    <div class="card card-pad auth-card">
+      <header class="auth-head">
+        <h2 class="auth-title">Sign in to StockRoom</h2>
+        <p class="muted">Use your warehouse account to continue.</p>
+      </header>
+
+      <form class="stack" (ngSubmit)="submit()" data-testid="login-form">
+        @if (formError()) {
+          <p class="form-error" role="alert" data-testid="login-error">
+            {{ formError() }}
+          </p>
+        }
+
+        <div class="field">
+          <label class="label" for="login-email">Email</label>
+          <input
+            id="login-email"
+            class="input"
+            [class.is-invalid]="fieldError() === 'email'"
+            type="email"
+            name="email"
+            autocomplete="username"
+            inputmode="email"
+            placeholder="you@warehouse.example"
+            [ngModel]="email()"
+            (ngModelChange)="email.set($event)"
+            data-testid="login-email"
+          />
+        </div>
+
+        <div class="field">
+          <label class="label" for="login-password">Password</label>
+          <input
+            id="login-password"
+            class="input"
+            [class.is-invalid]="fieldError() === 'password'"
+            type="password"
+            name="password"
+            autocomplete="current-password"
+            placeholder="Your password"
+            [ngModel]="password()"
+            (ngModelChange)="password.set($event)"
+            data-testid="login-password"
+          />
+        </div>
+
+        <button
+          class="btn btn-primary btn-block"
+          type="submit"
+          [disabled]="submitting()"
+          data-testid="login-submit"
+        >
+          {{ submitting() ? 'Signing in…' : 'Sign in' }}
+        </button>
+
+        @if (previewShortcut) {
+          <button
+            class="btn btn-ghost btn-block preview-skip"
+            type="button"
+            (click)="skipLogin()"
+            data-testid="login-preview-skip"
+          >
+            {{ previewShortcut }}
+          </button>
+        }
+      </form>
+
+      <p class="auth-foot muted">
+        New to the warehouse?
+        <a routerLink="/signup" data-testid="login-signup-link">Create an account</a>
+      </p>
+    </div>
+  </section>
+</main>

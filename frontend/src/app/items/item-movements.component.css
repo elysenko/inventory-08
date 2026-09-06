@@ -1,0 +1,15 @@
+.path {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.who {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.note {
+  font-size: var(--text-sm);
+  max-width: 26ch;
+}
