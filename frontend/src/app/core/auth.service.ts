@@ -114,6 +114,27 @@ export class AuthService {
     }
   }
 
+  /**
+   * Preview-build-only shortcut: seeds the same signed-in state the login form
+   * would, with no credentials involved. Gated on the `COLOSSUS_PREVIEW`
+   * build-time constant (declared in src/preview.d.ts, folded by esbuild), so
+   * this call is a no-op — and the branch is dead-code-eliminated entirely —
+   * in the production bundle that actually ships.
+   */
+  previewSignIn(): void {
+    if (COLOSSUS_PREVIEW) {
+      this.setSession(
+        {
+          id: 'preview-user',
+          email: 'reviewer@preview.local',
+          name: 'Preview Reviewer',
+          role: 'ADMIN',
+        },
+        'preview-session',
+      );
+    }
+  }
+
   logout(): void {
     this.clearSession();
     void this.router.navigate(['/login']);

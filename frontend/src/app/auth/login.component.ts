@@ -24,6 +24,15 @@ export class LoginComponent {
   readonly formError = signal<string | null>(null);
   readonly fieldError = signal<'email' | 'password' | null>(null);
 
+  /**
+   * Preview-build-only affordance. The label lives behind the build-time
+   * `COLOSSUS_PREVIEW` constant so esbuild strips both the branch and the
+   * string from production bundles; a runtime flag would leave it shipped.
+   */
+  readonly previewShortcut: string | null = COLOSSUS_PREVIEW
+    ? 'Continue without an account (preview build)'
+    : null;
+
   async submit(): Promise<void> {
     if (this.submitting()) {
       return;
@@ -40,6 +49,12 @@ export class LoginComponent {
       this.formError.set(result.message ?? 'Invalid credentials.');
       return;
     }
+    this.goToApp();
+  }
+
+  /** Preview-build-only: seeds the signed-in state directly, no credentials involved. */
+  skipLogin(): void {
+    this.auth.previewSignIn();
     this.goToApp();
   }
 
