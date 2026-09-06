@@ -33,11 +33,11 @@ npx prisma migrate deploy              # apply the schema
 npx prisma generate                    # regenerate the client after schema edits
 COLOSSUS_ACCOUNTS_JSON='[{"role":"ADMIN","email":"admin@example.com","password":"ChangeMe123!","login_path":"/login"}]' \
   node prisma/seed/seed.js             # idempotent; re-run any time
-npm run start:dev                      # API on :3000, Swagger at /api/docs
+npm run start:dev                      # API on :3001, Swagger at /api/docs
 
 cd ../frontend
 npm install
-npx ng serve                           # SPA on :4200, proxying /api to :3000
+npx ng serve                           # SPA on :4200, proxying /api to :3001
 ```
 
 The app ships with no sample data — the catalogue, locations and audit log all
@@ -88,6 +88,15 @@ except where marked public. Interactive docs: `/api/docs`.
 cd backend
 npm test              # unit tests — no database required
 npx tsc --noEmit      # type check
+
+# End-to-end API tests. These run against a real PostgreSQL database, because
+# what they check — the conditional decrement behind "stock can never go
+# negative", the unique constraints behind the duplicate-SKU 400, the aggregate
+# behind the low-stock report — lives in the database. Each suite namespaces its
+# fixtures and deletes exactly what it created, so it is safe against a shared
+# database and leaves no rows behind.
+export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/app_development"
+npm run test:e2e
 ```
 
 ## Configuration
@@ -97,7 +106,7 @@ npx tsc --noEmit      # type check
 | `DATABASE_URL` | yes | PostgreSQL connection string |
 | `JWT_SECRET` | yes | Signing key for access tokens |
 | `JWT_EXPIRES_IN` | no | Token lifetime, default `12h` |
-| `PORT` | no | Listen port, default `3000` |
+| `PORT` | no | Listen port, default `3001` |
 | `COLOSSUS_ACCOUNTS_JSON` | seed only | Platform-minted logins |
 | `MINIO_*` | no | Optional object storage; absent keys degrade that feature, never the app |
 
