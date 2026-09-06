@@ -18,3 +18,6 @@ yarn-error.log*
 # Editor / OS noise
 .DS_Store
 *.swp
+
+# TypeScript incremental build metadata
+*.tsbuildinfo

@@ -1,5 +1,8 @@
 generator client {
   provider = "prisma-client-js"
+  // Production pods run ARM64 with OpenSSL 3.0.x while the build host may ship
+  // 1.1.x; without both engines the client fails to load at container start.
+  binaryTargets = ["native", "linux-arm64-openssl-1.1.x", "linux-arm64-openssl-3.0.x"]
 }
 
 datasource db {
