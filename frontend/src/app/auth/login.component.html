@@ -69,16 +69,6 @@
           {{ submitting() ? 'Signing in…' : 'Sign in' }}
         </button>
 
-        @if (previewShortcut) {
-          <button
-            class="btn btn-ghost btn-block preview-skip"
-            type="button"
-            (click)="skipLogin()"
-            data-testid="login-preview-skip"
-          >
-            {{ previewShortcut }}
-          </button>
-        }
       </form>
 
       <p class="auth-foot muted">

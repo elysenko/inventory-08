@@ -10,9 +10,7 @@
 
 /**
  * First path segment of the deployment, used as the storage namespace.
- * Under a preview build the `<base href>` is `/<mockup_id>/`, which is exactly
- * the first URL path segment the screenshot harness prefixes its seeded keys
- * with. In a production build served from the root we fall back to a constant
+ * In a production build served from the root we fall back to a constant
  * so the namespace stays stable across routes.
  */
 export const STORAGE_NS: string = (() => {
@@ -21,9 +19,6 @@ export const STORAGE_NS: string = (() => {
   const fromBase = baseHref.split('/').filter(Boolean)[0];
   if (fromBase) {
     return fromBase;
-  }
-  if (COLOSSUS_PREVIEW) {
-    return window.location.pathname.split('/').filter(Boolean)[0] ?? 'app';
   }
   return 'app';
 })();

@@ -1,10 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import {
-  Router,
-  RouterLink,
-  RouterLinkActive,
-  RouterOutlet,
-} from '@angular/router';
+import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
 import { AuthService } from '../core/auth.service';
 import { ROLE_LABEL, Role } from '../core/models';
@@ -40,7 +35,6 @@ const RANK: Record<Role, number> = { USER: 0, MANAGER: 1, ADMIN: 2 };
 })
 export class ShellComponent {
   private readonly auth = inject(AuthService);
-  private readonly router = inject(Router);
 
   readonly user = this.auth.user;
   readonly role = this.auth.role;
@@ -65,11 +59,6 @@ export class ShellComponent {
 
   readonly hasMoreTab = computed(() => this.navItems().length > 5);
 
-  /** Preview-only: inspect the role-aware chrome as each kind of user. */
-  readonly roleSwitcher: Role[] | null = COLOSSUS_PREVIEW
-    ? ['USER', 'MANAGER', 'ADMIN']
-    : null;
-
   readonly initials = computed(() => {
     const source = this.user()?.name || this.user()?.email || 'SR';
     return source
@@ -86,22 +75,6 @@ export class ShellComponent {
 
   closeDrawer(): void {
     this.drawerOpen.set(false);
-  }
-
-  switchRole(role: Role): void {
-    this.auth.previewSetRole(role);
-    this.closeDrawer();
-    // Guards only run on navigation, so a demotion while sitting on a
-    // manager-only screen would leave the reviewer on a page their new role
-    // can't reach. Send them somewhere every role can see.
-    const allowed = NAV.filter((item) => RANK[role] >= RANK[item.minRole]).map(
-      (item) => item.path,
-    );
-    const url = this.router.url.split('?')[0];
-    const stillAllowed = allowed.some((path) => url.startsWith(path));
-    if (!stillAllowed) {
-      void this.router.navigate(['/items']);
-    }
   }
 
   logout(): void {

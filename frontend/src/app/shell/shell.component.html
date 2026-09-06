@@ -119,24 +119,6 @@
           }
         </ul>
 
-        @if (roleSwitcher) {
-          <div class="role-switch">
-            <p class="hint">Preview as</p>
-            <div class="role-chips">
-              @for (r of roleSwitcher; track r) {
-                <button
-                  type="button"
-                  class="role-chip"
-                  [class.active]="role() === r"
-                  (click)="switchRole(r)"
-                >
-                  {{ roleLabel[r] }}
-                </button>
-              }
-            </div>
-          </div>
-        }
-
         <button
           type="button"
           class="btn btn-secondary btn-block"

@@ -66,27 +66,12 @@ export class AuthService {
     } catch {
       removeKeys(TOKEN_KEY, USER_KEY);
     }
-
-    if (COLOSSUS_PREVIEW) {
-      // Static preview: there is no API to authenticate against, so treat the
-      // reviewer as already signed in. Deep links to guarded routes then render
-      // the screen under review instead of bouncing to /login (which stays
-      // directly reachable and fully functional at its own URL).
-      this.setSession(demoUser('ADMIN'), 'preview-session');
-    }
   }
 
   async login(email: string, password: string): Promise<AuthResult> {
     const shape = validateCredentials(email, password);
     if (!shape.ok) {
       return shape;
-    }
-
-    if (COLOSSUS_PREVIEW) {
-      // Resolved locally and synchronously — a network call would fail on the
-      // static preview host and strand the reviewer on the login screen.
-      this.setSession(demoUser(roleForEmail(email), email), 'preview-session');
-      return { ok: true };
     }
 
     try {
@@ -110,14 +95,6 @@ export class AuthService {
       return shape;
     }
 
-    if (COLOSSUS_PREVIEW) {
-      this.setSession(
-        { ...demoUser(roleForEmail(email), email), name: name ?? null },
-        'preview-session',
-      );
-      return { ok: true };
-    }
-
     try {
       const res = await firstValueFrom(
         this.http.post<AuthResponse>('/api/auth/signup', {
@@ -134,28 +111,6 @@ export class AuthService {
         field: 'email',
         message: 'That email address is already registered.',
       };
-    }
-  }
-
-  /**
-   * Preview-only shortcut: seeds the same signed-in state the login form does,
-   * with no credentials involved, so an automated capture pass (and a reviewer
-   * who just wants to see the app) can reach the authenticated screens.
-   */
-  previewSignIn(role: Role = 'ADMIN'): void {
-    if (COLOSSUS_PREVIEW) {
-      this.setSession(demoUser(role), 'preview-session');
-    }
-  }
-
-  /** Preview-only: re-render the role-aware chrome as a different actor. */
-  previewSetRole(role: Role): void {
-    if (COLOSSUS_PREVIEW) {
-      const current = this.user();
-      this.setSession(
-        { ...(current ?? demoUser(role)), role },
-        this.token() ?? 'preview-session',
-      );
     }
   }
 
@@ -214,29 +169,4 @@ function validateCredentials(email: string, password: string): AuthResult {
     };
   }
   return { ok: true };
-}
-
-/**
- * Preview-only role inference so a reviewer can see each role's chrome by
- * signing in with a matching address. Anything else lands on the clerk view's
- * superset (admin) so no screen is unreachable.
- */
-function roleForEmail(email: string): Role {
-  const local = email.trim().toLowerCase();
-  if (local.startsWith('clerk') || local.startsWith('user')) {
-    return 'USER';
-  }
-  if (local.startsWith('manager')) {
-    return 'MANAGER';
-  }
-  return 'ADMIN';
-}
-
-function demoUser(role: Role, email?: string): User {
-  return {
-    id: 'preview-user',
-    email: email?.trim() || 'warehouse.lead@stockroom.app',
-    name: 'Dana Okafor',
-    role,
-  };
 }

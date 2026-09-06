@@ -3,7 +3,6 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 
 import { AuthService } from '../core/auth.service';
-import { Role } from '../core/models';
 
 @Component({
   selector: 'app-login',
@@ -25,15 +24,6 @@ export class LoginComponent {
   readonly formError = signal<string | null>(null);
   readonly fieldError = signal<'email' | 'password' | null>(null);
 
-  /**
-   * Preview-only affordance. The label lives in TypeScript behind the
-   * build-time constant so esbuild strips both the branch and the string from
-   * production bundles; a runtime flag would leave it shipped.
-   */
-  readonly previewShortcut: string | null = COLOSSUS_PREVIEW
-    ? 'Skip login — Demo Mode'
-    : null;
-
   async submit(): Promise<void> {
     if (this.submitting()) {
       return;
@@ -50,12 +40,6 @@ export class LoginComponent {
       this.formError.set(result.message ?? 'Invalid credentials.');
       return;
     }
-    this.goToApp();
-  }
-
-  /** Seeds the signed-in state directly — no credentials involved. */
-  skipLogin(role: Role = 'ADMIN'): void {
-    this.auth.previewSignIn(role);
     this.goToApp();
   }
 
