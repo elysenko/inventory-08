@@ -1,12 +1,16 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  OnInit,
   computed,
+  inject,
   signal,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 import { LowStockRow } from '../core/models';
+import { apiErrorMessage } from '../shared/api/api-client.service';
+import { ReportsApi } from '../shared/api/reports-api.service';
 
 @Component({
   selector: 'app-low-stock',
@@ -15,20 +19,47 @@ import { LowStockRow } from '../core/models';
   styleUrl: './low-stock.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class LowStockComponent {
+export class LowStockComponent implements OnInit {
+  private readonly reportsApi = inject(ReportsApi);
+
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
 
-  readonly rows = signal<LowStockRow[]>([
-    { id: 'itm-1007', sku: 'WH-1007', name: 'Safety Goggles, Clear', unit: 'ea', reorderAt: 35, totalQty: 0, deficit: -35 },
-    { id: 'itm-1003', sku: 'WH-1003', name: 'Packing Tape 48mm', unit: 'roll', reorderAt: 60, totalQty: 12, deficit: -48 },
-    { id: 'itm-1002', sku: 'WH-1002', name: 'Nitrile Gloves, Large', unit: 'box', reorderAt: 40, totalQty: 26, deficit: -14 },
-    { id: 'itm-1005', sku: 'WH-1005', name: 'Thermal Label 4x6', unit: 'roll', reorderAt: 30, totalQty: 30, deficit: 0 },
-  ]);
+  /**
+   * GET /api/reports/low-stock — every item whose summed balance across all
+   * locations sits at or below its reorder level, including items with no
+   * stock rows at all. Manager-only.
+   */
+  readonly rows = signal<LowStockRow[]>([]);
 
-  /** Worst deficit first, exactly as the API orders it. */
+  ngOnInit(): void {
+    void this.load();
+  }
+
+  private async load(): Promise<void> {
+    this.loading.set(true);
+    this.error.set(null);
+    try {
+      this.rows.set(await this.reportsApi.lowStock());
+    } catch (error) {
+      this.error.set(
+        apiErrorMessage(error, 'Could not load the low-stock report.'),
+      );
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  /**
+   * Worst shortfall first, matching both the header copy and the API's own
+   * ordering. `deficit` is `reorderAt - totalQty`, so it is *positive* when an
+   * item is short and the biggest number is the most urgent — hence descending.
+   * SKU breaks ties so the order is stable between loads.
+   */
   readonly sorted = computed<LowStockRow[]>(() =>
-    [...this.rows()].sort((a, b) => a.deficit - b.deficit),
+    [...this.rows()].sort(
+      (a, b) => b.deficit - a.deficit || a.sku.localeCompare(b.sku),
+    ),
   );
 
   readonly outOfStock = computed(

@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   input,
   output,
   signal,
@@ -34,13 +35,28 @@ export class LocationFormDialogComponent {
   private readonly touched = signal(false);
   private readonly draft = signal<Partial<LocationFormValue>>({});
 
+  /** See ItemFormDialogComponent: a latched server error must not wedge the form. */
+  private readonly serverErrorDismissed = signal(false);
+
+  constructor() {
+    effect(() => {
+      this.serverError();
+      this.serverErrorDismissed.set(false);
+    });
+  }
+
+  private readonly activeServerError = computed(() =>
+    this.serverErrorDismissed() ? null : this.serverError(),
+  );
+
   readonly isEdit = computed(() => this.location() !== null);
   readonly name = computed(() => this.draft().name ?? this.location()?.name ?? '');
   readonly zone = computed(() => this.draft().zone ?? this.location()?.zone ?? '');
 
   readonly nameError = computed(() => {
-    if (this.serverError()) {
-      return this.serverError();
+    const serverError = this.activeServerError();
+    if (serverError) {
+      return serverError;
     }
     return this.touched() && !this.name().trim() ? 'Name is required.' : null;
   });
@@ -54,6 +70,7 @@ export class LocationFormDialogComponent {
     value: LocationFormValue[K],
   ): void {
     this.draft.update((current) => ({ ...current, [key]: value }));
+    this.serverErrorDismissed.set(true);
   }
 
   submit(): void {

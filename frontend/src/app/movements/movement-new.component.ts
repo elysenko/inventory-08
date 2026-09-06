@@ -1,7 +1,9 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  OnInit,
   computed,
+  effect,
   inject,
   input,
   signal,
@@ -18,6 +20,10 @@ import {
   MovementType,
   StockLevelRow,
 } from '../core/models';
+import { apiErrorMessage } from '../shared/api/api-client.service';
+import { ItemsApi } from '../shared/api/items-api.service';
+import { LocationsApi } from '../shared/api/locations-api.service';
+import { MovementsApi } from '../shared/api/movements-api.service';
 
 @Component({
   selector: 'app-movement-new',
@@ -26,9 +32,12 @@ import {
   styleUrl: './movement-new.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class MovementNewComponent {
+export class MovementNewComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
+  private readonly itemsApi = inject(ItemsApi);
+  private readonly locationsApi = inject(LocationsApi);
+  private readonly movementsApi = inject(MovementsApi);
 
   /* --- Every step of the wizard is addressable ------------------------- */
   readonly step = input('1', { transform: queryDefault('1') });
@@ -45,37 +54,56 @@ export class MovementNewComponent {
   /** Server 400 (e.g. "Insufficient stock") — keeps the user on step 3. */
   readonly formError = signal<string | null>(null);
 
-  readonly items = signal<Item[]>([
-    { id: 'itm-1001', sku: 'WH-1001', name: 'M8 Hex Bolt, Zinc Plated', unit: 'ea', reorderAt: 120, totalQty: 480 },
-    { id: 'itm-1002', sku: 'WH-1002', name: 'Nitrile Gloves, Large', unit: 'box', reorderAt: 40, totalQty: 26 },
-    { id: 'itm-1003', sku: 'WH-1003', name: 'Packing Tape 48mm', unit: 'roll', reorderAt: 60, totalQty: 12 },
-    { id: 'itm-1004', sku: 'WH-1004', name: 'Euro Pallet 1200x800', unit: 'ea', reorderAt: 25, totalQty: 90 },
-    { id: 'itm-1005', sku: 'WH-1005', name: 'Thermal Label 4x6', unit: 'roll', reorderAt: 30, totalQty: 30 },
-    { id: 'itm-1006', sku: 'WH-1006', name: 'Stretch Wrap 500mm', unit: 'roll', reorderAt: 50, totalQty: 145 },
-    { id: 'itm-1007', sku: 'WH-1007', name: 'Safety Goggles, Clear', unit: 'ea', reorderAt: 35, totalQty: 0 },
-    { id: 'itm-1008', sku: 'WH-1008', name: 'Cable Tie 200mm', unit: 'pack', reorderAt: 80, totalQty: 320 },
-  ]);
+  /** Catalogue for step 1's searchable picker. */
+  readonly items = signal<Item[]>([]);
 
-  readonly locations = signal<Location[]>([
-    { id: 'loc-a', name: 'Bulk Racking A1', zone: 'Zone A' },
-    { id: 'loc-b', name: 'Pick Face B2', zone: 'Zone B' },
-    { id: 'loc-c', name: 'Cold Store C1', zone: 'Zone C' },
-    { id: 'loc-d', name: 'Goods-In Bay', zone: 'Zone A' },
-  ]);
+  /** Every storage location, for the step-2 source/destination controls. */
+  readonly locations = signal<Location[]>([]);
 
-  readonly levels = signal<StockLevelRow[]>([
-    { itemId: 'itm-1001', locationId: 'loc-a', locationName: 'Bulk Racking A1', zone: 'Zone A', qty: 300 },
-    { itemId: 'itm-1001', locationId: 'loc-b', locationName: 'Pick Face B2', zone: 'Zone B', qty: 180 },
-    { itemId: 'itm-1002', locationId: 'loc-b', locationName: 'Pick Face B2', zone: 'Zone B', qty: 26 },
-    { itemId: 'itm-1003', locationId: 'loc-a', locationName: 'Bulk Racking A1', zone: 'Zone A', qty: 4 },
-    { itemId: 'itm-1003', locationId: 'loc-b', locationName: 'Pick Face B2', zone: 'Zone B', qty: 8 },
-    { itemId: 'itm-1004', locationId: 'loc-d', locationName: 'Goods-In Bay', zone: 'Zone A', qty: 90 },
-    { itemId: 'itm-1005', locationId: 'loc-b', locationName: 'Pick Face B2', zone: 'Zone B', qty: 30 },
-    { itemId: 'itm-1006', locationId: 'loc-a', locationName: 'Bulk Racking A1', zone: 'Zone A', qty: 100 },
-    { itemId: 'itm-1006', locationId: 'loc-b', locationName: 'Pick Face B2', zone: 'Zone B', qty: 45 },
-    { itemId: 'itm-1008', locationId: 'loc-a', locationName: 'Bulk Racking A1', zone: 'Zone A', qty: 200 },
-    { itemId: 'itm-1008', locationId: 'loc-b', locationName: 'Pick Face B2', zone: 'Zone B', qty: 120 },
-  ]);
+  /** The selected item's balance per location — the availability hints. */
+  readonly levels = signal<StockLevelRow[]>([]);
+
+  ngOnInit(): void {
+    void this.loadCatalogue();
+  }
+
+  constructor() {
+    // The chosen item lives in ?itemId=, so its balances are re-read whenever
+    // that param changes — including on a cold deep link straight into step 2.
+    effect(() => {
+      const itemId = this.itemId();
+      if (itemId) {
+        void this.loadLevels(itemId);
+      } else {
+        this.levels.set([]);
+      }
+    });
+  }
+
+  private async loadCatalogue(): Promise<void> {
+    try {
+      const [items, locations] = await Promise.all([
+        this.itemsApi.listItems(),
+        this.locationsApi.listLocations(),
+      ]);
+      this.items.set(items);
+      this.locations.set(locations);
+    } catch (error) {
+      this.formError.set(
+        apiErrorMessage(error, 'Could not load items and locations.'),
+      );
+    }
+  }
+
+  private async loadLevels(itemId: string): Promise<void> {
+    try {
+      this.levels.set(await this.locationsApi.listStockLevels(itemId));
+    } catch {
+      // Without balances the availability hint is simply absent; the server
+      // still refuses any over-draw, so correctness does not depend on this.
+      this.levels.set([]);
+    }
+  }
 
   /* --- Derived state ---------------------------------------------------- */
   readonly selectedItem = computed<Item | null>(
@@ -224,7 +252,14 @@ export class MovementNewComponent {
     this.patchQuery({ step: String(step) });
   }
 
-  submit(): void {
+  /**
+   * POST /api/movements. The server applies the balance change and writes the
+   * audit row in one transaction, and it is the sole authority on stock: an
+   * over-draw comes back as 400 "Insufficient stock" having written nothing,
+   * which is shown as a form-level error with the user left on step 3 and
+   * their input intact (it all lives in the URL).
+   */
+  async submit(): Promise<void> {
     if (!this.canSubmit()) {
       return;
     }
@@ -237,53 +272,34 @@ export class MovementNewComponent {
     this.submitting.set(true);
     this.formError.set(null);
 
-    // The service layer swaps this for POST /api/movements. A 400 from the
-    // server (e.g. "Insufficient stock") sets formError and leaves the
-    // reviewer on step 3 with their input intact.
-    this.levels.update((rows) => this.applyMovement(rows, item, type));
-    this.submitting.set(false);
-    this.toast.success(
-      `${type} of ${this.quantity()} ${item.unit} recorded against ${item.sku}`,
-    );
-    void this.router.navigate(['/items', item.id, 'levels']);
-  }
+    const qty = this.quantity();
+    const note = this.note().trim();
 
-  private applyMovement(
-    rows: StockLevelRow[],
-    item: Item,
-    type: MovementType,
-  ): StockLevelRow[] {
-    const amount = this.quantity();
-    let next = rows;
-    if (type === 'OUT' || type === 'TRANSFER') {
-      next = next.map((row) =>
-        row.itemId === item.id && row.locationId === this.fromLocId()
-          ? { ...row, qty: row.qty - amount }
-          : row,
+    try {
+      await this.movementsApi.createMovement({
+        type,
+        itemId: item.id,
+        qty,
+        // Sent only where the type allows them — the API rejects a
+        // fromLocId on an IN, and a toLocId on an OUT.
+        ...(this.needsFrom() ? { fromLocId: this.fromLocId() } : {}),
+        ...(this.needsTo() ? { toLocId: this.toLocId() } : {}),
+        ...(note ? { note } : {}),
+      });
+      this.toast.success(
+        `${type} of ${qty} ${item.unit} recorded against ${item.sku}`,
       );
-    }
-    if (type === 'IN' || type === 'TRANSFER') {
-      const target = this.toLocId();
-      const exists = next.some(
-        (row) => row.itemId === item.id && row.locationId === target,
+      // The detail page re-reads from the API, so the balance shown there is
+      // the committed one rather than anything predicted here.
+      void this.router.navigate(['/items', item.id, 'levels']);
+    } catch (error) {
+      this.formError.set(
+        apiErrorMessage(error, 'Could not record that movement.'),
       );
-      next = exists
-        ? next.map((row) =>
-            row.itemId === item.id && row.locationId === target
-              ? { ...row, qty: row.qty + amount }
-              : row,
-          )
-        : [
-            ...next,
-            {
-              itemId: item.id,
-              locationId: target,
-              locationName: this.locationName(target),
-              zone: this.locations().find((l) => l.id === target)?.zone ?? '',
-              qty: amount,
-            },
-          ];
+      // Re-read the balances: a rejection often means they moved underneath us.
+      void this.loadLevels(item.id);
+    } finally {
+      this.submitting.set(false);
     }
-    return next;
   }
 }

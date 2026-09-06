@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   inject,
   input,
   signal,
@@ -10,8 +11,10 @@ import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/rou
 
 import { AuthService } from '../core/auth.service';
 import { ToastService } from '../core/toast.service';
-import { Item } from '../core/models';
+import { ItemDetail } from '../core/models';
 import { queryText } from '../core/query-params';
+import { apiErrorMessage, apiErrorStatus } from '../shared/api/api-client.service';
+import { ItemsApi } from '../shared/api/items-api.service';
 import { ItemFormDialogComponent, ItemFormValue } from './item-form-dialog.component';
 
 @Component({
@@ -30,6 +33,7 @@ export class ItemDetailComponent {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
+  private readonly itemsApi = inject(ItemsApi);
 
   readonly isManager = this.auth.isManager;
 
@@ -37,25 +41,44 @@ export class ItemDetailComponent {
   readonly id = input('', { transform: queryText });
   readonly modal = input('', { transform: queryText });
 
-  readonly items = signal<Item[]>([
-    { id: 'itm-1001', sku: 'WH-1001', name: 'M8 Hex Bolt, Zinc Plated', description: 'Grade 8.8 structural bolt, 40mm shank.', unit: 'ea', reorderAt: 120, totalQty: 480 },
-    { id: 'itm-1002', sku: 'WH-1002', name: 'Nitrile Gloves, Large', description: 'Powder-free, blue, 100 per box.', unit: 'box', reorderAt: 40, totalQty: 26 },
-    { id: 'itm-1003', sku: 'WH-1003', name: 'Packing Tape 48mm', description: 'Clear polypropylene, 66m roll.', unit: 'roll', reorderAt: 60, totalQty: 12 },
-    { id: 'itm-1004', sku: 'WH-1004', name: 'Euro Pallet 1200x800', description: 'Heat-treated hardwood, ISPM-15 stamped.', unit: 'ea', reorderAt: 25, totalQty: 90 },
-    { id: 'itm-1005', sku: 'WH-1005', name: 'Thermal Label 4x6', description: 'Direct thermal, 250 labels per roll.', unit: 'roll', reorderAt: 30, totalQty: 30 },
-    { id: 'itm-1006', sku: 'WH-1006', name: 'Stretch Wrap 500mm', description: '23 micron hand pallet wrap.', unit: 'roll', reorderAt: 50, totalQty: 145 },
-    { id: 'itm-1007', sku: 'WH-1007', name: 'Safety Goggles, Clear', description: 'Anti-fog polycarbonate, EN166.', unit: 'ea', reorderAt: 35, totalQty: 0 },
-    { id: 'itm-1008', sku: 'WH-1008', name: 'Cable Tie 200mm', description: 'Natural nylon, 100 per pack.', unit: 'pack', reorderAt: 80, totalQty: 320 },
-  ]);
+  /** GET /api/items/:id — the item plus its per-location breakdown. */
+  readonly item = signal<ItemDetail | null>(null);
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly dialogError = signal<string | null>(null);
 
-  /** Falls back to the first item so a stale deep link still renders a screen. */
-  readonly item = computed<Item | null>(
-    () => this.items().find((row) => row.id === this.id()) ?? this.items()[0] ?? null,
-  );
+  constructor() {
+    // The id arrives as a router-bound input, so the fetch is driven by it
+    // rather than by ngOnInit — navigating between two items re-reads.
+    effect(() => {
+      const id = this.id();
+      if (id) {
+        void this.load(id);
+      } else {
+        this.item.set(null);
+      }
+    });
+  }
+
+  /**
+   * A 404 is not an error banner: an unknown id means the item no longer
+   * exists, which the template already renders as its own empty state.
+   */
+  private async load(id: string): Promise<void> {
+    this.loading.set(true);
+    this.error.set(null);
+    try {
+      this.item.set(await this.itemsApi.getItem(id));
+    } catch (error) {
+      this.item.set(null);
+      if (apiErrorStatus(error) !== 404) {
+        this.error.set(apiErrorMessage(error, 'Could not load that item.'));
+      }
+    } finally {
+      this.loading.set(false);
+    }
+  }
 
   readonly isLow = computed(() => {
     const item = this.item();
@@ -79,22 +102,21 @@ export class ItemDetailComponent {
     });
   }
 
-  save(value: ItemFormValue): void {
+  async save(value: ItemFormValue): Promise<void> {
     const current = this.item();
     if (!current) {
       return;
     }
-    const clash = this.items().some(
-      (row) => row.sku.toLowerCase() === value.sku.toLowerCase() && row.id !== current.id,
-    );
-    if (clash) {
-      this.dialogError.set('sku must be unique');
-      return;
+    this.dialogError.set(null);
+    try {
+      await this.itemsApi.updateItem(current.id, value);
+      this.toast.success(`${value.sku} updated`);
+      this.closeModal();
+      await this.load(current.id);
+    } catch (error) {
+      // Duplicate SKU comes back as 400 "sku must be unique" and is rendered
+      // inline on the SKU control by the dialog.
+      this.dialogError.set(apiErrorMessage(error, 'Could not save that item.'));
     }
-    this.items.update((rows) =>
-      rows.map((row) => (row.id === current.id ? { ...row, ...value } : row)),
-    );
-    this.toast.success(`${value.sku} updated`);
-    this.closeModal();
   }
 }

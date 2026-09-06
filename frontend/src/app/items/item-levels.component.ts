@@ -2,6 +2,8 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
+  inject,
   input,
   signal,
 } from '@angular/core';
@@ -9,6 +11,7 @@ import { RouterLink } from '@angular/router';
 
 import { StockLevelRow } from '../core/models';
 import { queryText } from '../core/query-params';
+import { LocationsApi } from '../shared/api/locations-api.service';
 
 @Component({
   selector: 'app-item-levels',
@@ -18,22 +21,35 @@ import { queryText } from '../core/query-params';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ItemLevelsComponent {
+  private readonly locationsApi = inject(LocationsApi);
+
   /** Inherited from the parent `items/:id` route. */
   readonly id = input('', { transform: queryText });
 
-  readonly levels = signal<StockLevelRow[]>([
-    { itemId: 'itm-1001', locationId: 'loc-a', locationName: 'Bulk Racking A1', zone: 'Zone A', qty: 300 },
-    { itemId: 'itm-1001', locationId: 'loc-b', locationName: 'Pick Face B2', zone: 'Zone B', qty: 180 },
-    { itemId: 'itm-1002', locationId: 'loc-b', locationName: 'Pick Face B2', zone: 'Zone B', qty: 26 },
-    { itemId: 'itm-1003', locationId: 'loc-a', locationName: 'Bulk Racking A1', zone: 'Zone A', qty: 4 },
-    { itemId: 'itm-1003', locationId: 'loc-b', locationName: 'Pick Face B2', zone: 'Zone B', qty: 8 },
-    { itemId: 'itm-1004', locationId: 'loc-d', locationName: 'Goods-In Bay', zone: 'Zone A', qty: 90 },
-    { itemId: 'itm-1005', locationId: 'loc-b', locationName: 'Pick Face B2', zone: 'Zone B', qty: 30 },
-    { itemId: 'itm-1006', locationId: 'loc-a', locationName: 'Bulk Racking A1', zone: 'Zone A', qty: 100 },
-    { itemId: 'itm-1006', locationId: 'loc-b', locationName: 'Pick Face B2', zone: 'Zone B', qty: 45 },
-    { itemId: 'itm-1008', locationId: 'loc-a', locationName: 'Bulk Racking A1', zone: 'Zone A', qty: 200 },
-    { itemId: 'itm-1008', locationId: 'loc-b', locationName: 'Pick Face B2', zone: 'Zone B', qty: 120 },
-  ]);
+  /** GET /api/stock-levels?itemId= — the item's balance in each location. */
+  readonly levels = signal<StockLevelRow[]>([]);
+
+  constructor() {
+    effect(() => {
+      const id = this.id();
+      if (id) {
+        void this.load(id);
+      } else {
+        this.levels.set([]);
+      }
+    });
+  }
+
+  private async load(id: string): Promise<void> {
+    try {
+      this.levels.set(await this.locationsApi.listStockLevels(id));
+    } catch {
+      // No banner here: the tab sits inside the detail page, which already
+      // reports a failed load. An empty list renders the "nothing on hand"
+      // state, which is also the truthful answer for a brand-new item.
+      this.levels.set([]);
+    }
+  }
 
   readonly rows = computed<StockLevelRow[]>(() =>
     this.levels().filter((row) => !row.itemId || row.itemId === this.id()),

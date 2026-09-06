@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   input,
   output,
   signal,
@@ -38,6 +39,27 @@ export class ItemFormDialogComponent {
   private readonly touched = signal(false);
   private readonly draft = signal<Partial<ItemFormValue>>({});
 
+  /**
+   * A server rejection ("sku must be unique") is latched onto the field until
+   * the user edits the form again. Without this the stale message keeps
+   * `skuError()` truthy, `submit()` returns early forever and the dialog can
+   * never be resubmitted — even with a corrected SKU.
+   */
+  private readonly serverErrorDismissed = signal(false);
+
+  constructor() {
+    // Each fresh rejection re-arms the inline message.
+    effect(() => {
+      this.serverError();
+      this.serverErrorDismissed.set(false);
+    });
+  }
+
+  /** The server error, unless the user has since edited the form. */
+  private readonly activeServerError = computed(() =>
+    this.serverErrorDismissed() ? null : this.serverError(),
+  );
+
   readonly isEdit = computed(() => this.item() !== null);
 
   readonly sku = computed(() => this.draft().sku ?? this.item()?.sku ?? '');
@@ -51,7 +73,7 @@ export class ItemFormDialogComponent {
   );
 
   readonly skuError = computed(() => {
-    if (this.serverError()?.includes('sku')) {
+    if (this.activeServerError()?.includes('sku')) {
       return 'That SKU is already in use.';
     }
     if (!this.touched()) {
@@ -78,6 +100,7 @@ export class ItemFormDialogComponent {
 
   patch<K extends keyof ItemFormValue>(key: K, value: ItemFormValue[K]): void {
     this.draft.update((current) => ({ ...current, [key]: value }));
+    this.serverErrorDismissed.set(true);
   }
 
   submit(): void {

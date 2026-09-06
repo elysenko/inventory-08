@@ -1,7 +1,9 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  OnInit,
   computed,
+  effect,
   inject,
   input,
   signal,
@@ -12,6 +14,9 @@ import { Router, RouterLink } from '@angular/router';
 
 import { Item, MOVEMENT_TYPES, Movement } from '../core/models';
 import { queryDefault, queryText } from '../core/query-params';
+import { apiErrorMessage } from '../shared/api/api-client.service';
+import { ItemsApi } from '../shared/api/items-api.service';
+import { MovementsApi } from '../shared/api/movements-api.service';
 
 const PAGE_SIZE = 8;
 
@@ -22,8 +27,10 @@ const PAGE_SIZE = 8;
   styleUrl: './movement-log.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class MovementLogComponent {
+export class MovementLogComponent implements OnInit {
   private readonly router = inject(Router);
+  private readonly movementsApi = inject(MovementsApi);
+  private readonly itemsApi = inject(ItemsApi);
 
   /* --- Filters live in the URL ------------------------------------------ */
   readonly itemId = input('', { transform: queryText });
@@ -36,34 +43,64 @@ export class MovementLogComponent {
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
 
-  readonly items = signal<Item[]>([
-    { id: 'itm-1001', sku: 'WH-1001', name: 'M8 Hex Bolt, Zinc Plated', unit: 'ea', reorderAt: 120, totalQty: 480 },
-    { id: 'itm-1002', sku: 'WH-1002', name: 'Nitrile Gloves, Large', unit: 'box', reorderAt: 40, totalQty: 26 },
-    { id: 'itm-1003', sku: 'WH-1003', name: 'Packing Tape 48mm', unit: 'roll', reorderAt: 60, totalQty: 12 },
-    { id: 'itm-1004', sku: 'WH-1004', name: 'Euro Pallet 1200x800', unit: 'ea', reorderAt: 25, totalQty: 90 },
-    { id: 'itm-1005', sku: 'WH-1005', name: 'Thermal Label 4x6', unit: 'roll', reorderAt: 30, totalQty: 30 },
-    { id: 'itm-1006', sku: 'WH-1006', name: 'Stretch Wrap 500mm', unit: 'roll', reorderAt: 50, totalQty: 145 },
-    { id: 'itm-1007', sku: 'WH-1007', name: 'Safety Goggles, Clear', unit: 'ea', reorderAt: 35, totalQty: 0 },
-    { id: 'itm-1008', sku: 'WH-1008', name: 'Cable Tie 200mm', unit: 'pack', reorderAt: 80, totalQty: 320 },
-  ]);
+  /** Populates the item filter dropdown. */
+  readonly items = signal<Item[]>([]);
 
-  readonly movements = signal<Movement[]>([
-    { id: 'mv-31', type: 'OUT', itemId: 'itm-1003', itemSku: 'WH-1003', itemName: 'Packing Tape 48mm', qty: 18, fromLocName: 'Pick Face B2', toLocName: null, note: 'Outbound wave 4471', userEmail: 'sam.patel@stockroom.app', createdAt: '2026-09-05T15:42:00Z' },
-    { id: 'mv-30', type: 'TRANSFER', itemId: 'itm-1001', itemSku: 'WH-1001', itemName: 'M8 Hex Bolt, Zinc Plated', qty: 60, fromLocName: 'Bulk Racking A1', toLocName: 'Pick Face B2', note: 'Pick face replenishment', userEmail: 'dana.okafor@stockroom.app', createdAt: '2026-09-05T11:08:00Z' },
-    { id: 'mv-29', type: 'IN', itemId: 'itm-1006', itemSku: 'WH-1006', itemName: 'Stretch Wrap 500mm', qty: 100, fromLocName: null, toLocName: 'Bulk Racking A1', note: 'PO-88213 received', userEmail: 'dana.okafor@stockroom.app', createdAt: '2026-09-04T09:15:00Z' },
-    { id: 'mv-28', type: 'OUT', itemId: 'itm-1002', itemSku: 'WH-1002', itemName: 'Nitrile Gloves, Large', qty: 14, fromLocName: 'Pick Face B2', toLocName: null, note: 'Issued to packing line', userEmail: 'sam.patel@stockroom.app', createdAt: '2026-09-03T16:30:00Z' },
-    { id: 'mv-27', type: 'OUT', itemId: 'itm-1007', itemSku: 'WH-1007', itemName: 'Safety Goggles, Clear', qty: 12, fromLocName: 'Bulk Racking A1', toLocName: null, note: 'Site safety refresh', userEmail: 'lee.morgan@stockroom.app', createdAt: '2026-09-03T08:05:00Z' },
-    { id: 'mv-26', type: 'TRANSFER', itemId: 'itm-1003', itemSku: 'WH-1003', itemName: 'Packing Tape 48mm', qty: 8, fromLocName: 'Bulk Racking A1', toLocName: 'Pick Face B2', note: null, userEmail: 'sam.patel@stockroom.app', createdAt: '2026-09-02T13:20:00Z' },
-    { id: 'mv-25', type: 'IN', itemId: 'itm-1004', itemSku: 'WH-1004', itemName: 'Euro Pallet 1200x800', qty: 90, fromLocName: null, toLocName: 'Goods-In Bay', note: 'Pallet return from carrier', userEmail: 'lee.morgan@stockroom.app', createdAt: '2026-09-01T10:00:00Z' },
-    { id: 'mv-24', type: 'IN', itemId: 'itm-1001', itemSku: 'WH-1001', itemName: 'M8 Hex Bolt, Zinc Plated', qty: 540, fromLocName: null, toLocName: 'Bulk Racking A1', note: 'PO-88190 received', userEmail: 'dana.okafor@stockroom.app', createdAt: '2026-08-31T07:45:00Z' },
-    { id: 'mv-23', type: 'IN', itemId: 'itm-1008', itemSku: 'WH-1008', itemName: 'Cable Tie 200mm', qty: 320, fromLocName: null, toLocName: 'Bulk Racking A1', note: null, userEmail: 'lee.morgan@stockroom.app', createdAt: '2026-08-29T12:10:00Z' },
-    { id: 'mv-22', type: 'IN', itemId: 'itm-1005', itemSku: 'WH-1005', itemName: 'Thermal Label 4x6', qty: 30, fromLocName: null, toLocName: 'Pick Face B2', note: 'Short delivery — 20 rolls backordered', userEmail: 'dana.okafor@stockroom.app', createdAt: '2026-08-28T14:55:00Z' },
-    { id: 'mv-21', type: 'TRANSFER', itemId: 'itm-1008', itemSku: 'WH-1008', itemName: 'Cable Tie 200mm', qty: 120, fromLocName: 'Bulk Racking A1', toLocName: 'Pick Face B2', note: 'Replen for line 2', userEmail: 'sam.patel@stockroom.app', createdAt: '2026-08-27T09:35:00Z' },
-    { id: 'mv-20', type: 'OUT', itemId: 'itm-1006', itemSku: 'WH-1006', itemName: 'Stretch Wrap 500mm', qty: 25, fromLocName: 'Pick Face B2', toLocName: null, note: 'Consumed on despatch', userEmail: 'lee.morgan@stockroom.app', createdAt: '2026-08-26T17:02:00Z' },
-  ]);
+  /** GET /api/movements — the immutable audit log, newest first. */
+  readonly movements = signal<Movement[]>([]);
+
+  ngOnInit(): void {
+    void this.loadItems();
+  }
+
+  constructor() {
+    // Filters live in the URL, so the query is driven by the router-bound
+    // inputs: a deep link with ?itemId=&type=&from=&to= fetches exactly that
+    // slice, and editing a filter re-fetches it.
+    effect(() => {
+      void this.loadMovements({
+        itemId: this.itemId(),
+        type: this.type(),
+        from: this.from(),
+        to: this.to(),
+      });
+    });
+  }
+
+  private async loadItems(): Promise<void> {
+    try {
+      this.items.set(await this.itemsApi.listItems());
+    } catch {
+      // A failed item list only costs the filter dropdown its labels; the log
+      // itself reports its own failure below.
+      this.items.set([]);
+    }
+  }
+
+  private async loadMovements(query: {
+    itemId: string;
+    type: string;
+    from: string;
+    to: string;
+  }): Promise<void> {
+    this.loading.set(true);
+    this.error.set(null);
+    try {
+      this.movements.set(await this.movementsApi.listMovements(query));
+    } catch (error) {
+      this.movements.set([]);
+      this.error.set(apiErrorMessage(error, 'Could not load the audit log.'));
+    } finally {
+      this.loading.set(false);
+    }
+  }
 
   readonly currentPage = computed(() => Math.max(1, Number(this.page()) || 1));
 
+  /**
+   * The API has already applied these filters; re-checking them here keeps the
+   * pager honest during the moment between a filter change and its response.
+   */
   readonly filtered = computed<Movement[]>(() =>
     this.movements().filter((row) => {
       if (this.itemId() && row.itemId !== this.itemId()) return false;

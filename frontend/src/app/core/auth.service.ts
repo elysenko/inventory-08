@@ -160,10 +160,28 @@ export class AuthService {
   }
 
   logout(): void {
+    this.clearSession();
+    void this.router.navigate(['/login']);
+  }
+
+  /**
+   * The API rejected our token (401). Drop the session and bounce to sign-in,
+   * remembering where the user was so they resume there after re-authenticating.
+   * Called by the HTTP interceptor, never by a component.
+   */
+  expireSession(returnUrl?: string): void {
+    this.clearSession();
+    const target = returnUrl && !returnUrl.startsWith('/login') ? returnUrl : null;
+    void this.router.navigate(
+      ['/login'],
+      target ? { queryParams: { returnUrl: target } } : {},
+    );
+  }
+
+  private clearSession(): void {
     this.user.set(null);
     this.token.set(null);
     removeKeys(TOKEN_KEY, USER_KEY);
-    void this.router.navigate(['/login']);
   }
 
   private setSession(user: User, token: string): void {

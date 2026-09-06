@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  OnInit,
   computed,
   inject,
   input,
@@ -13,6 +14,8 @@ import { AuthService } from '../core/auth.service';
 import { ToastService } from '../core/toast.service';
 import { Item } from '../core/models';
 import { queryDefault, queryText } from '../core/query-params';
+import { apiErrorMessage } from '../shared/api/api-client.service';
+import { ItemsApi } from '../shared/api/items-api.service';
 import { ItemFormDialogComponent, ItemFormValue } from './item-form-dialog.component';
 
 const PAGE_SIZE = 6;
@@ -24,10 +27,11 @@ const PAGE_SIZE = 6;
   styleUrl: './item-list.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ItemListComponent {
+export class ItemListComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
+  private readonly itemsApi = inject(ItemsApi);
 
   readonly isManager = this.auth.isManager;
 
@@ -40,21 +44,33 @@ export class ItemListComponent {
   readonly id = input('', { transform: queryText });
 
   /* --- Server-backed data ------------------------------------------------ */
-  readonly items = signal<Item[]>([
-    { id: 'itm-1001', sku: 'WH-1001', name: 'M8 Hex Bolt, Zinc Plated', description: 'Grade 8.8 structural bolt, 40mm shank.', unit: 'ea', reorderAt: 120, totalQty: 480 },
-    { id: 'itm-1002', sku: 'WH-1002', name: 'Nitrile Gloves, Large', description: 'Powder-free, blue, 100 per box.', unit: 'box', reorderAt: 40, totalQty: 26 },
-    { id: 'itm-1003', sku: 'WH-1003', name: 'Packing Tape 48mm', description: 'Clear polypropylene, 66m roll.', unit: 'roll', reorderAt: 60, totalQty: 12 },
-    { id: 'itm-1004', sku: 'WH-1004', name: 'Euro Pallet 1200x800', description: 'Heat-treated hardwood, ISPM-15 stamped.', unit: 'ea', reorderAt: 25, totalQty: 90 },
-    { id: 'itm-1005', sku: 'WH-1005', name: 'Thermal Label 4x6', description: 'Direct thermal, 250 labels per roll.', unit: 'roll', reorderAt: 30, totalQty: 30 },
-    { id: 'itm-1006', sku: 'WH-1006', name: 'Stretch Wrap 500mm', description: '23 micron hand pallet wrap.', unit: 'roll', reorderAt: 50, totalQty: 145 },
-    { id: 'itm-1007', sku: 'WH-1007', name: 'Safety Goggles, Clear', description: 'Anti-fog polycarbonate, EN166.', unit: 'ea', reorderAt: 35, totalQty: 0 },
-    { id: 'itm-1008', sku: 'WH-1008', name: 'Cable Tie 200mm', description: 'Natural nylon, 100 per pack.', unit: 'pack', reorderAt: 80, totalQty: 320 },
-  ]);
+  readonly items = signal<Item[]>([]);
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly saving = signal(false);
   readonly dialogError = signal<string | null>(null);
+
+  ngOnInit(): void {
+    void this.load();
+  }
+
+  /**
+   * The whole catalogue in one call. Search, the low-stock toggle and paging
+   * are applied below against this list rather than re-querying per keystroke —
+   * the filters stay in the URL either way, so a deep link still resolves.
+   */
+  private async load(): Promise<void> {
+    this.loading.set(true);
+    this.error.set(null);
+    try {
+      this.items.set(await this.itemsApi.listItems());
+    } catch (error) {
+      this.error.set(apiErrorMessage(error, 'Could not load the item catalog.'));
+    } finally {
+      this.loading.set(false);
+    }
+  }
 
   /* --- Derived view ------------------------------------------------------ */
   readonly lowStockOn = computed(() => this.lowStock() === 'true');
@@ -155,35 +171,42 @@ export class ItemListComponent {
     });
   }
 
-  /* --- Mutations (mock: the service layer swaps these for API calls) ----- */
-  save(value: ItemFormValue): void {
+  /* --- Mutations --------------------------------------------------------- */
+  /**
+   * The API owns uniqueness: a duplicate SKU comes back as 400
+   * "sku must be unique" with nothing written, and that message is handed to
+   * the dialog so it renders inline on the SKU control.
+   */
+  async save(value: ItemFormValue): Promise<void> {
     const editing = this.editing();
-    const clash = this.items().some(
-      (item) => item.sku.toLowerCase() === value.sku.toLowerCase() && item.id !== editing?.id,
-    );
-    if (clash) {
-      this.dialogError.set('sku must be unique');
-      return;
+    this.saving.set(true);
+    this.dialogError.set(null);
+    try {
+      if (editing) {
+        await this.itemsApi.updateItem(editing.id, value);
+        this.toast.success(`${value.sku} updated`);
+      } else {
+        await this.itemsApi.createItem(value);
+        this.toast.success(`${value.sku} added to the catalog`);
+      }
+      this.closeModal();
+      await this.load();
+    } catch (error) {
+      this.dialogError.set(apiErrorMessage(error, 'Could not save that item.'));
+    } finally {
+      this.saving.set(false);
     }
-
-    if (editing) {
-      this.items.update((rows) =>
-        rows.map((row) => (row.id === editing.id ? { ...row, ...value } : row)),
-      );
-      this.toast.success(`${value.sku} updated`);
-    } else {
-      this.items.update((rows) => [
-        { id: `itm-${Date.now()}`, totalQty: 0, ...value },
-        ...rows,
-      ]);
-      this.toast.success(`${value.sku} added to the catalog`);
-    }
-    this.closeModal();
   }
 
-  remove(item: Item): void {
-    this.items.update((rows) => rows.filter((row) => row.id !== item.id));
-    this.toast.success(`${item.sku} removed`);
+  /** Refused with 400 when a recorded movement references the item. */
+  async remove(item: Item): Promise<void> {
     this.closeModal();
+    try {
+      await this.itemsApi.deleteItem(item.id);
+      this.toast.success(`${item.sku} removed`);
+      await this.load();
+    } catch (error) {
+      this.toast.error(apiErrorMessage(error, `Could not delete ${item.sku}.`));
+    }
   }
 }

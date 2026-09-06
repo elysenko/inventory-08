@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  OnInit,
   computed,
   inject,
   signal,
@@ -9,6 +10,8 @@ import { FormsModule } from '@angular/forms';
 
 import { ToastService } from '../core/toast.service';
 import { SettingEntry } from '../core/models';
+import { apiErrorMessage } from '../shared/api/api-client.service';
+import { SettingsApi } from '../shared/api/settings-api.service';
 
 interface ServiceGroup {
   service: string;
@@ -25,21 +28,34 @@ interface ServiceGroup {
   styleUrl: './settings.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class SettingsComponent {
+export class SettingsComponent implements OnInit {
   private readonly toast = inject(ToastService);
+  private readonly settingsApi = inject(SettingsApi);
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly saving = signal<string | null>(null);
 
   /** GET /api/admin/settings — values arrive masked. */
-  readonly settings = signal<SettingEntry[]>([
-    { service: 'postgresql', key: 'DATABASE_URL', label: 'Connection URL', value: 'postgresql://stockroom:••••••••@app-db:5432/stockroom', configured: true },
-    { service: 'minio', key: 'MINIO_ENDPOINT', label: 'Endpoint', value: '', configured: false },
-    { service: 'minio', key: 'MINIO_ACCESS_KEY', label: 'Access key', value: '', configured: false },
-    { service: 'minio', key: 'MINIO_SECRET_KEY', label: 'Secret key', value: '', configured: false },
-    { service: 'minio', key: 'MINIO_BUCKET', label: 'Bucket name', value: '', configured: false },
-  ]);
+  readonly settings = signal<SettingEntry[]>([]);
+
+  ngOnInit(): void {
+    void this.load();
+  }
+
+  private async load(): Promise<void> {
+    this.loading.set(true);
+    this.error.set(null);
+    try {
+      this.settings.set(await this.settingsApi.listSettings());
+    } catch (error) {
+      this.error.set(
+        apiErrorMessage(error, 'Could not load the service settings.'),
+      );
+    } finally {
+      this.loading.set(false);
+    }
+  }
 
   /** Local edits, keyed by setting key, until the section is saved. */
   private readonly draft = signal<Record<string, string>>({});
@@ -81,21 +97,41 @@ export class SettingsComponent {
     this.draft.update((current) => ({ ...current, [key]: value }));
   }
 
-  save(group: ServiceGroup): void {
-    this.saving.set(group.service);
+  /**
+   * Saves only the keys the admin actually edited in this section. The API
+   * returns the whole refreshed (re-masked) list, so we replace rather than
+   * merge and the "Configured" badges reflect what the server really resolved.
+   */
+  async save(group: ServiceGroup): Promise<void> {
     const edits = this.draft();
-    this.settings.update((rows) =>
-      rows.map((row) =>
-        row.service === group.service
-          ? {
-              ...row,
-              value: edits[row.key] ?? row.value,
-              configured: !!(edits[row.key] ?? row.value).trim(),
-            }
-          : row,
-      ),
-    );
-    this.saving.set(null);
-    this.toast.success(`${group.label} credentials saved`);
+    const updates = group.entries
+      .filter((entry) => edits[entry.key] !== undefined)
+      .map((entry) => ({ key: entry.key, value: edits[entry.key] ?? '' }));
+
+    if (updates.length === 0) {
+      this.toast.success(`${group.label} credentials unchanged`);
+      return;
+    }
+
+    this.saving.set(group.service);
+    try {
+      this.settings.set(await this.settingsApi.saveSettings(updates));
+      // Clear the saved keys so the inputs fall back to the server's masked
+      // values instead of echoing the secret the admin just typed.
+      this.draft.update((current) => {
+        const next = { ...current };
+        for (const update of updates) {
+          delete next[update.key];
+        }
+        return next;
+      });
+      this.toast.success(`${group.label} credentials saved`);
+    } catch (error) {
+      this.toast.error(
+        apiErrorMessage(error, `Could not save the ${group.label} credentials.`),
+      );
+    } finally {
+      this.saving.set(null);
+    }
   }
 }

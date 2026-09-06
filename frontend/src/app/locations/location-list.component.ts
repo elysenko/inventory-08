@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  OnInit,
   computed,
   inject,
   input,
@@ -11,6 +12,8 @@ import { Router } from '@angular/router';
 import { ToastService } from '../core/toast.service';
 import { Location } from '../core/models';
 import { queryText } from '../core/query-params';
+import { apiErrorMessage } from '../shared/api/api-client.service';
+import { LocationsApi } from '../shared/api/locations-api.service';
 import {
   LocationFormDialogComponent,
   LocationFormValue,
@@ -23,26 +26,39 @@ import {
   styleUrl: './location-list.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class LocationListComponent {
+export class LocationListComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
+  private readonly locationsApi = inject(LocationsApi);
 
   /** `?modal=create-location|edit-location` and `?id=`. */
   readonly modal = input('', { transform: queryText });
   readonly id = input('', { transform: queryText });
 
-  readonly locations = signal<Location[]>([
-    { id: 'loc-a', name: 'Bulk Racking A1', zone: 'Zone A' },
-    { id: 'loc-b', name: 'Pick Face B2', zone: 'Zone B' },
-    { id: 'loc-c', name: 'Cold Store C1', zone: 'Zone C' },
-    { id: 'loc-d', name: 'Goods-In Bay', zone: 'Zone A' },
-  ]);
+  /** GET /api/locations — readable by any signed-in user, ordered by name. */
+  readonly locations = signal<Location[]>([]);
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly dialogError = signal<string | null>(null);
   /** Form-level error, e.g. the API refusing a delete that still holds stock. */
   readonly pageError = signal<string | null>(null);
+
+  ngOnInit(): void {
+    void this.load();
+  }
+
+  private async load(): Promise<void> {
+    this.loading.set(true);
+    this.error.set(null);
+    try {
+      this.locations.set(await this.locationsApi.listLocations());
+    } catch (error) {
+      this.error.set(apiErrorMessage(error, 'Could not load storage locations.'));
+    } finally {
+      this.loading.set(false);
+    }
+  }
 
   readonly zones = computed(() => {
     const seen = new Set(this.locations().map((loc) => loc.zone));
@@ -90,45 +106,45 @@ export class LocationListComponent {
     });
   }
 
-  save(value: LocationFormValue): void {
+  /**
+   * The API owns name uniqueness — a clash comes back as 400 and is rendered
+   * inline on the name control by the dialog.
+   */
+  async save(value: LocationFormValue): Promise<void> {
     const editing = this.editing();
-    const clash = this.locations().some(
-      (loc) =>
-        loc.name.toLowerCase() === value.name.trim().toLowerCase() &&
-        loc.id !== editing?.id,
-    );
-    if (clash) {
-      this.dialogError.set('A location with that name already exists.');
-      return;
-    }
-
-    if (editing) {
-      this.locations.update((rows) =>
-        rows.map((row) => (row.id === editing.id ? { ...row, ...value } : row)),
+    this.dialogError.set(null);
+    try {
+      if (editing) {
+        await this.locationsApi.updateLocation(editing.id, value);
+        this.toast.success(`${value.name} updated`);
+      } else {
+        await this.locationsApi.createLocation(value);
+        this.toast.success(`${value.name} added`);
+      }
+      this.closeModal();
+      await this.load();
+    } catch (error) {
+      this.dialogError.set(
+        apiErrorMessage(error, 'Could not save that location.'),
       );
-      this.toast.success(`${value.name} updated`);
-    } else {
-      this.locations.update((rows) => [
-        ...rows,
-        { id: `loc-${Date.now()}`, ...value },
-      ]);
-      this.toast.success(`${value.name} added`);
     }
-    this.closeModal();
   }
 
-  remove(location: Location): void {
-    // The API refuses to delete a location that still holds stock or is
-    // referenced by a movement; the mock mirrors that with the same message.
-    if (location.id === 'loc-a' || location.id === 'loc-b') {
-      this.pageError.set(
-        `${location.name} still holds stock and is referenced by recorded movements, so it cannot be deleted. Move its stock elsewhere first.`,
-      );
-      this.closeModal();
-      return;
-    }
-    this.locations.update((rows) => rows.filter((row) => row.id !== location.id));
-    this.toast.success(`${location.name} removed`);
+  /**
+   * Refused with 400 while the location still holds stock or is referenced by
+   * a recorded movement; the server's explanation is shown on the page.
+   */
+  async remove(location: Location): Promise<void> {
+    this.pageError.set(null);
     this.closeModal();
+    try {
+      await this.locationsApi.deleteLocation(location.id);
+      this.toast.success(`${location.name} removed`);
+      await this.load();
+    } catch (error) {
+      this.pageError.set(
+        apiErrorMessage(error, `Could not delete ${location.name}.`),
+      );
+    }
   }
 }
