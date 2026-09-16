@@ -1,0 +1,77 @@
+{
+  "site": {
+    "name": "tu-prep-488bb13x",
+    "site_id": "tu-prep-488bb13x"
+  },
+  "meta": {
+    "generated_by": "declared"
+  },
+  "front_end": {
+    "pages": [
+      {
+        "name": "403",
+        "page_id": "403",
+        "url": "/403",
+        "linked_page_ids": []
+      },
+      {
+        "name": "Settings",
+        "page_id": "admin-settings",
+        "url": "/admin/settings",
+        "linked_page_ids": []
+      },
+      {
+        "name": "Items",
+        "page_id": "items",
+        "url": "/items",
+        "linked_page_ids": []
+      },
+      {
+        "name": "Levels",
+        "page_id": "levels",
+        "url": "/levels",
+        "linked_page_ids": []
+      },
+      {
+        "name": "Locations",
+        "page_id": "locations",
+        "url": "/locations",
+        "linked_page_ids": []
+      },
+      {
+        "name": "Login",
+        "page_id": "login",
+        "url": "/login",
+        "linked_page_ids": []
+      },
+      {
+        "name": "Movements",
+        "page_id": "movements",
+        "url": "/movements",
+        "linked_page_ids": []
+      },
+      {
+        "name": "New",
+        "page_id": "movements-new",
+        "url": "/movements/new",
+        "linked_page_ids": []
+      },
+      {
+        "name": "Low-stock",
+        "page_id": "reports-low-stock",
+        "url": "/reports/low-stock",
+        "linked_page_ids": []
+      },
+      {
+        "name": "Signup",
+        "page_id": "signup",
+        "url": "/signup",
+        "linked_page_ids": []
+      }
+    ]
+  },
+  "back_end": {
+    "tables": []
+  },
+  "generated_by": "declared"
+}
